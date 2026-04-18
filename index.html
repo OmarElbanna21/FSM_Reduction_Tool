@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FSM State Reduction Tool v2.2 — Digital Logic Circuits II</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#05080c;--glass:rgba(255,255,255,0.04);--gb:rgba(255,255,255,0.10);
+  --panel:rgba(10,15,22,0.96);--panel2:#080d12;--border:#182638;
+  --accent:#00c8f0;--a2:#7ee8fa;--a3:#38bdf8;
+  --red:#ff4455;--rbg:rgba(255,68,85,0.12);--rmid:rgba(255,68,85,0.07);
+  --green:#22f08a;--gbg:rgba(34,240,138,0.09);
+  --yellow:#ffd23f;--yb:rgba(255,210,63,0.10);
+  --purple:#c084fc;--pb:rgba(192,132,252,0.10);
+  --orange:#fb923c;
+  --text:#c8d8e8;--muted:#253545;--muted2:#42607a;
+  --cell:52px;--r:8px;--sb:220px;--blur:blur(14px) saturate(180%);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Courier New',monospace;background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse 60% 40% at 20% 15%,rgba(0,200,240,.07) 0%,transparent 70%),
+    radial-gradient(ellipse 50% 30% at 80% 85%,rgba(192,132,252,.05) 0%,transparent 70%);
+  background-attachment:fixed}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--muted);border-radius:3px}
+/* ─ sidebar ─ */
+.sb{position:fixed;top:0;left:0;bottom:0;width:var(--sb);background:rgba(4,7,11,.93);
+  backdrop-filter:var(--blur);border-right:1px solid var(--gb);display:flex;flex-direction:column;
+  padding:22px 0 18px;z-index:100;overflow-y:auto}
+.sb-logo{padding:0 18px 18px;border-bottom:1px solid var(--gb)}
+.sb-tag{font-size:8px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase}
+.sb-logo h2{font-size:13px;color:var(--accent);letter-spacing:1px;margin-top:3px}
+.sb-nav{padding:14px 0;flex:1}
+.ng-lbl{font-size:8px;letter-spacing:2px;color:var(--muted2);padding:6px 18px 3px;text-transform:uppercase;display:block}
+.ni{display:flex;align-items:center;gap:7px;padding:7px 18px;cursor:pointer;font-size:11px;
+  color:var(--muted2);transition:all .13s;white-space:nowrap;border:none;background:none;
+  width:100%;text-align:left;font-family:inherit;letter-spacing:.3px}
+.ni:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.ni.active{color:var(--accent);background:rgba(0,200,240,.07);border-right:2px solid var(--accent)}
+.ni.done{color:var(--green)}
+.nd{width:5px;height:5px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .13s}
+.ni.active .nd{background:var(--accent)}.ni.done .nd{background:var(--green)}
+.sb-foot{padding:12px 18px;border-top:1px solid var(--gb);font-size:9px;color:var(--muted2)}
+.api-pill{display:inline-flex;align-items:center;gap:4px;font-size:8px;letter-spacing:1px;
+  padding:3px 8px;border-radius:8px;border:1px solid var(--muted);color:var(--muted2);margin-top:6px}
+.api-pill.ok{border-color:var(--green);color:var(--green)}.api-pill.fail{border-color:var(--red);color:var(--red)}
+.api-d{width:5px;height:5px;border-radius:50%;background:currentColor}
+/* ─ main ─ */
+.main{margin-left:var(--sb);min-height:100vh;padding:26px 26px 80px}
+@media(max-width:700px){.sb{transform:translateX(-100%)}.main{margin-left:0}}
+/* ─ glass card ─ */
+.card{background:var(--glass);backdrop-filter:var(--blur);border:1px solid var(--gb);
+  border-radius:var(--r);padding:20px 24px;margin-bottom:16px;transition:border-color .2s}
+.card:hover{border-color:rgba(0,200,240,.18)}
+.ct{font-size:9px;letter-spacing:3px;color:var(--muted2);text-transform:uppercase;
+  margin-bottom:13px;border-bottom:1px solid rgba(255,255,255,.05);padding-bottom:7px;
+  display:flex;align-items:center;gap:8px}
+.sb-badge{background:linear-gradient(135deg,var(--accent),var(--a3));color:#000;
+  font-size:8px;font-weight:bold;letter-spacing:1px;padding:2px 7px;border-radius:3px;flex-shrink:0}
+/* ─ header ─ */
+.hdr{padding:10px 0 22px}
+.hdr-tag{font-size:8px;letter-spacing:3px;color:var(--muted2);text-transform:uppercase;margin-bottom:4px}
+.hdr h1{font-size:22px;letter-spacing:2px;font-weight:bold;
+  background:linear-gradient(90deg,var(--accent),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hdr-sub{font-size:10px;color:var(--muted2);margin-top:3px}
+/* ─ stats grid ─ */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+.sc{background:rgba(255,255,255,.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;padding:16px 20px;position:relative;overflow:hidden}
+.sc::before{content:'';position:absolute;top:-40%;left:-40%;width:180%;height:180%;
+  background:radial-gradient(ellipse,currentColor 0%,transparent 65%);opacity:.04;pointer-events:none}
+.sc.cc{color:var(--accent)}.sc.cg{color:var(--green)}.sc.cp{color:var(--purple)}.sc.co{color:var(--orange)}
+.sl{font-size:9px;letter-spacing:2px;color:var(--muted2);text-transform:uppercase;margin-bottom:7px}
+.sv{font-size:26px;font-weight:bold;line-height:1;color:inherit}
+.ss{font-size:10px;color:var(--muted2);margin-top:4px}
+.sbar{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:10px;overflow:hidden}
+.sbf{height:100%;border-radius:2px;background:currentColor;transition:width 1s ease;width:0}
+/* ─ buttons ─ */
+button{font-family:inherit;cursor:pointer;border-radius:4px;transition:all .13s;border:none}
+.btn{font-size:11px;padding:6px 14px;border:1px solid var(--accent);background:transparent;color:var(--accent);letter-spacing:.5px}
+.btn:hover{background:rgba(0,200,240,.11)}
+.btn.pr{background:linear-gradient(135deg,var(--accent),var(--a3));color:#000;font-weight:bold;font-size:13px;padding:9px 26px;border:none}
+.btn.pr:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 18px rgba(0,200,240,.28)}
+.btn.dn{border-color:var(--red);color:var(--red)}.btn.dn:hover{background:var(--rbg)}
+.btn.sm{font-size:10px;padding:4px 9px}
+.btn.gh{border:1px solid var(--gb);color:var(--muted2)}.btn.gh:hover{border-color:var(--accent);color:var(--accent)}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap}
+.bpr{font-size:10px;padding:5px 12px;border:1px solid var(--gb);background:rgba(255,255,255,.03);color:var(--muted2)}
+.bpr:hover,.bpr.on{border-color:var(--accent);color:var(--accent);background:rgba(0,200,240,.06)}
+/* ─ input table ─ */
+.stbl{border-collapse:collapse;font-size:12px}
+.stbl th{background:rgba(0,200,240,.07);color:var(--accent);border:1px solid var(--border);
+  padding:7px 14px;font-size:9px;letter-spacing:1.5px;text-align:center;white-space:nowrap}
+.stbl td{border:1px solid var(--border);padding:2px 3px;text-align:center}
+.stbl .rn{color:var(--muted2);font-size:9px;padding:2px 8px}
+.cin{width:54px;background:rgba(255,255,255,.04);border:1px solid transparent;
+  color:var(--text);padding:5px 0;text-align:center;font-family:inherit;font-size:12px;border-radius:3px;outline:none}
+.cin:focus{border-color:var(--accent);background:rgba(0,200,240,.06)}
+.inote{font-size:10px;color:var(--muted2);background:rgba(0,200,240,.05);
+  border-left:2px solid var(--accent);padding:7px 12px;border-radius:0 4px 4px 0;margin-bottom:12px;line-height:1.7}
+.sbar2{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+.stxt{font-size:10px;color:var(--muted2)}.stxt.er{color:var(--red)}
+/* ─ spinner ─ */
+#spinner{display:none;text-align:center;padding:22px}
+.sring{width:40px;height:40px;border:3px solid rgba(255,255,255,.08);border-top:3px solid var(--accent);
+  border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stxt2{font-size:10px;color:var(--muted2);margin-top:8px}
+/* ─ results ─ */
+#results{display:none}#results.on{display:block}
+/* ─ pass nav ─ */
+.pass-nav{display:flex;align-items:center;gap:8px;margin-bottom:11px;flex-wrap:wrap}
+.pdots{display:flex;gap:4px;align-items:center}
+.pdot{width:8px;height:8px;border-radius:50%;background:var(--muted);cursor:pointer;transition:all .13s}
+.pdot.active{background:var(--accent);transform:scale(1.3)}.pdot.done{background:var(--green)}
+.pcnt{font-size:10px;color:var(--muted2);margin:0 4px}
+/* ─ implication table ─ */
+.impl-tbl{border-collapse:collapse;table-layout:fixed}
+.impl-tbl .ch,.impl-tbl .rh{width:var(--cell);color:var(--accent);font-size:13px;font-weight:bold;
+  text-align:center;border:1px solid var(--border);background:rgba(0,200,240,.07)}
+.impl-tbl .ch{height:26px}.impl-tbl .rh{height:var(--cell)}
+.impl-tbl .co{width:var(--cell);height:26px;background:rgba(0,0,0,.2);border:1px solid rgba(0,0,0,.1)}
+.impl-tbl td.em{background:rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.08)}
+.impl-tbl td.c{width:var(--cell);height:var(--cell);border:1px solid var(--border);
+  text-align:center;vertical-align:middle;cursor:pointer;position:relative;transition:all .15s;font-size:11px}
+.impl-tbl td.io{background:var(--rbg);color:var(--red);font-size:17px;font-weight:bold}
+.impl-tbl td.ip{background:var(--rmid);color:var(--red);font-size:17px;font-weight:bold}
+.impl-tbl td.in{background:var(--yb);color:var(--yellow);font-size:17px;font-weight:bold;box-shadow:inset 0 0 0 2px var(--yellow)}
+.impl-tbl td.ok{background:var(--gbg);color:var(--green);line-height:1.4}
+.impl-tbl td.chk{background:var(--gbg);color:var(--green);font-size:14px}
+.impl-tbl td.hi{box-shadow:inset 0 0 0 2px var(--purple)!important;background:var(--pb)!important}
+.impl-tbl td:hover:not(.em){filter:brightness(1.25)}
+/* ─ legend ─ */
+.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:10px;color:var(--muted2);margin-bottom:12px}
+.li{display:flex;align-items:center;gap:5px}
+.ld{width:12px;height:12px;border-radius:2px;flex-shrink:0}
+/* ─ partitioning ─ */
+.pt-step{margin-bottom:14px}.pt-title{font-size:10px;letter-spacing:1px;margin-bottom:8px}
+.pt-title.y{color:var(--yellow)}.pt-title.g{color:var(--green)}
+.pt-groups{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+.pt-box{border:1px solid var(--accent);border-radius:5px;padding:8px 15px;
+  background:rgba(0,200,240,.05);min-width:70px;text-align:center}
+.pt-lbl{font-size:16px;font-weight:bold;color:var(--accent)}
+.pt-mem{font-size:11px;color:var(--a2);margin-top:2px}
+/* ─ equiv classes ─ */
+.eq-row{display:flex;flex-wrap:wrap;gap:9px}
+.eq-box{border:1px solid var(--accent);border-radius:5px;padding:9px 18px;
+  background:rgba(0,200,240,.05);display:flex;align-items:center;gap:10px}
+.eq-lbl{font-size:18px;font-weight:bold;color:var(--accent)}.eq-m{font-size:12px;color:var(--a2)}
+/* ─ result tables ─ */
+.rtbl{border-collapse:collapse;font-size:12px}
+.rtbl th{background:rgba(0,200,240,.07);color:var(--accent);border:1px solid var(--border);
+  padding:6px 15px;font-size:9px;letter-spacing:1.5px;text-align:center;white-space:nowrap}
+.rtbl td{border:1px solid var(--border);padding:6px 14px;text-align:center}
+.rtbl .sn{color:var(--accent);font-size:14px;font-weight:bold}
+.rtbl .ns{color:var(--a2)}.rtbl .mbr{color:var(--muted2);font-size:10px}
+.rtbl .out{color:var(--yellow);font-weight:bold}.rtbl .bin{color:var(--purple);letter-spacing:1px}
+.rtbl .dc{color:var(--muted2)}.rtbl .unused-row td{opacity:.4}
+.rm-list{display:flex;flex-wrap:wrap;gap:7px}
+.rm-item{background:rgba(255,255,255,.04);border:1px solid var(--border);padding:5px 13px;border-radius:3px;font-size:11px}
+/* ─ assignment ─ */
+.acards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:820px){.acards{grid-template-columns:1fr}}
+.acard{background:var(--glass);backdrop-filter:var(--blur);border:1px solid var(--gb);border-radius:8px;padding:14px 18px}
+.acard.best{border-color:rgba(255,210,63,.4);background:rgba(255,210,63,.04)}
+.ar{font-size:8px;letter-spacing:2px;color:var(--muted2);margin-bottom:6px}
+.ar.best{color:var(--yellow)}.as{font-size:24px;font-weight:bold;color:var(--accent);margin-bottom:8px}
+.am{font-size:11px;color:var(--text);line-height:1.9}.am .bin{color:var(--purple)}
+.aa{font-size:10px;color:var(--green);margin-top:8px;line-height:1.7}
+.slr{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px}
+.slr:last-child{border:none}.slp{color:var(--accent);font-size:12px;font-weight:bold;min-width:44px}
+.slsc{color:var(--yellow);min-width:28px}.slrs{font-size:10px;color:var(--muted2);line-height:1.7;flex:1}
+.r1{color:#fb923c}.r2{color:var(--accent)}.r3{color:var(--purple)}
+/* ─ D3 graph ─ */
+#adj-graph{background:rgba(0,0,0,.3);border:1px solid var(--gb);border-radius:var(--r);width:100%;height:295px;overflow:hidden}
+.adj-node circle{stroke-width:2;cursor:grab}
+.adj-node text{font-family:'Courier New',monospace;font-size:12px;font-weight:bold;pointer-events:none}
+/* ─ equations ─ */
+.eq-items{display:flex;flex-direction:column;gap:8px}
+.eq-ln{display:flex;align-items:baseline;gap:10px;background:rgba(255,255,255,.04);
+  border:1px solid var(--gb);padding:10px 18px;border-radius:6px}
+.en{color:var(--accent);font-size:14px;font-weight:bold;min-width:30px}
+.ee{color:var(--muted2);font-size:14px;margin:0 3px}
+.ex{color:var(--text);font-size:14px;letter-spacing:.5px;font-family:'Courier New',monospace}
+.ex .var{color:var(--a2)}.ex .prime{color:var(--red)}.ex .plus{color:var(--yellow)}
+/* ─ K-Map ─ */
+.kmap-grid{display:flex;flex-wrap:wrap;gap:22px;margin-top:8px}
+.kmap-wrap{background:rgba(255,255,255,.03);border:1px solid var(--gb);border-radius:8px;padding:16px}
+.kmap-title{font-size:10px;letter-spacing:2px;color:var(--muted2);margin-bottom:11px}
+.kmap-tbl{border-collapse:collapse;font-size:12px}
+.kmap-tbl th{background:rgba(0,200,240,.08);color:var(--accent);border:1px solid var(--border);padding:5px 12px;text-align:center;font-size:9px;letter-spacing:1px}
+.kmap-tbl td{width:42px;height:42px;border:1px solid var(--border);text-align:center;vertical-align:middle;font-size:13px;font-weight:bold;cursor:default;transition:background .14s}
+.kmap-tbl td.k0{color:var(--muted2)}.kmap-tbl td.k1{color:var(--text)}.kmap-tbl td.kd{color:var(--muted2);font-style:italic}
+.kmap-tbl td.kh0{background:rgba(255,68,85,.28)!important;color:var(--red)}
+.kmap-tbl td.kh1{background:rgba(0,200,240,.24)!important;color:var(--accent)}
+.kmap-tbl td.kh2{background:rgba(192,132,252,.24)!important;color:var(--purple)}
+.kmap-tbl td.kh3{background:rgba(251,146,60,.24)!important;color:var(--orange)}
+.kmap-tbl td.kh4{background:rgba(34,240,138,.24)!important;color:var(--green)}
+.kmap-leg{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:10px}
+.kmap-leg-i{display:flex;align-items:center;gap:5px}
+.kmap-dot{width:10px;height:10px;border-radius:2px}
+/* ─ diagrams ─ */
+.dg2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:680px){.dg2{grid-template-columns:1fr}}
+.dbox{background:rgba(255,255,255,.03);border:1px solid var(--gb);border-radius:6px;padding:14px;overflow:auto}
+.dtag{font-size:9px;letter-spacing:2px;color:var(--muted2);margin-bottom:10px}
+.dbox svg{max-width:100%;height:auto}.derr{font-size:10px;color:var(--muted2);padding:6px}
+/* ─ log ─ */
+.lbox{background:rgba(0,0,0,.4);border:1px solid var(--gb);border-radius:5px;padding:10px;font-size:10px;color:var(--muted2);max-height:150px;overflow-y:auto;line-height:2}
+.lg{display:block}.lg.g{color:var(--green)}.lg.y{color:var(--yellow)}.lg.r{color:var(--red)}
+/* ─ verify ─ */
+.vr{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px}
+.vr:last-child{border:none}.vp{color:var(--green);font-size:12px}.vf{color:var(--red);font-size:12px}
+/* ─ summary ─ */
+.sumbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+  background:var(--gbg);border:1px solid rgba(34,240,138,.3);border-radius:6px;padding:12px 18px;color:var(--green);font-size:12px}
+.sumbar .n{font-size:17px;font-weight:bold}
+/* ─ tooltip ─ */
+[data-tip]{position:relative;cursor:help}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
+  background:#090e15;color:var(--a2);border:1px solid var(--border);border-radius:4px;padding:5px 9px;
+  font-size:9px;white-space:pre-wrap;z-index:500;pointer-events:none;max-width:220px;line-height:1.5;
+  box-shadow:0 4px 20px rgba(0,0,0,.5)}
+[data-tip]:hover::before{content:'';position:absolute;bottom:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#090e15;z-index:501}
+/* ─ modal ─ */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
+.ov.open{display:flex}
+.modal{background:rgba(8,12,18,.97);backdrop-filter:var(--blur);border:1px solid var(--gb);border-radius:10px;padding:24px;width:min(580px,96vw);max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.modal h3{color:var(--accent);font-size:13px;letter-spacing:1px;margin-bottom:5px}
+.modal p{font-size:10px;color:var(--muted2);margin-bottom:10px;line-height:1.7}
+.bta{width:100%;height:170px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:11px;padding:9px;border-radius:4px;resize:vertical;outline:none}
+.bta:focus{border-color:var(--accent)}.berr{color:var(--red);font-size:10px;margin-top:5px;min-height:14px}
+/* ─ misc ─ */
+.scroll{overflow-x:auto}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.col{display:flex;flex-direction:column;gap:5px}
+select,input[type=number]{font-family:inherit;font-size:11px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text);padding:5px 7px;border-radius:4px;outline:none}
+select:focus,input[type=number]:focus{border-color:var(--accent)}
+label{font-size:10px;color:var(--muted2);letter-spacing:.5px}
+/* ─ trans table header ─ */
+.tgh{background:rgba(0,0,0,.2);font-size:8px;letter-spacing:1px;color:var(--muted2)}
+/* ─ print ─ */
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff!important;color:#000!important}
+  .sb,.sbar2,.btn-group,.ov,#adj-graph,#spinner,.pass-nav,.lbox,.export-bar,button:not(.kp){display:none!important}
+  .main{margin-left:0;padding:0}
+  .card{background:#fff!important;border:1px solid #ccc!important;break-inside:avoid;margin-bottom:8px;padding:12px 16px}
+  .ct{color:#333!important;border-color:#ccc!important}.sb-badge{background:#000!important;color:#fff!important}
+  .impl-tbl td.io,.impl-tbl td.ip{background:#fdd!important;color:#900!important}
+  .impl-tbl td.in{background:#ffd!important;color:#660!important;box-shadow:none!important}
+  .impl-tbl td.ok,.impl-tbl td.chk{background:#dfd!important;color:#030!important}
+  .impl-tbl .ch,.impl-tbl .rh{color:#000!important;background:#eee!important}
+  .rtbl th{background:#eee!important;color:#000!important}
+  .rtbl .sn,.rtbl .ns,.rtbl .out,.rtbl .bin,.rtbl .mbr{color:#000!important}
+  .sc{background:#f5f5f5!important;border:1px solid #ccc!important}.sv{color:#000!important}
+  .eq-ln{background:#f8f8f8!important;border:1px solid #ccc!important}
+  .en,.ex{color:#000!important}.ex .var{color:#333!important}.ex .prime{color:#900!important}.ex .plus{color:#060!important}
+  .eq-box{background:#f5f5f5!important;border-color:#000!important}.eq-lbl{color:#000!important}.eq-m{color:#333!important}
+  .acard{background:#fff!important;border:1px solid #ccc!important}.as{color:#000!important}
+  .sumbar{background:#e8ffe8!important;border-color:#080!important;color:#040!important}
+  .hdr h1{color:#000!important;-webkit-text-fill-color:#000!important}
+  .kmap-tbl th{background:#eee!important;color:#000!important}
+  [data-tip]::after,[data-tip]::before{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<nav class="sb">
+  <div class="sb-logo">
+    <div class="sb-tag">Digital Logic II · Alex. Univ.</div>
+    <h2>FSM Reduction</h2>
+  </div>
+  <div class="sb-nav">
+    <span class="ng-lbl">Input</span>
+    <button class="ni active" onclick="gotoSec('sec-input')"><span class="nd"></span>State Table</button>
+    <div id="nav-res" style="display:none">
+      <span class="ng-lbl">Results</span>
+      <button class="ni" id="nv-stats" onclick="gotoSec('sec-stats')"><span class="nd"></span>Dashboard</button>
+      <button class="ni" id="nv-s1"    onclick="gotoSec('sec-s1')"><span class="nd"></span>Row Matching</button>
+      <button class="ni" id="nv-s2"    onclick="gotoSec('sec-s2')"><span class="nd"></span>Method A: Impl. Table</button>
+      <button class="ni" id="nv-s3"    onclick="gotoSec('sec-s3')"><span class="nd"></span>Method B: Partitioning</button>
+      <button class="ni" id="nv-s5"    onclick="gotoSec('sec-s5')"><span class="nd"></span>State Assignment</button>
+      <button class="ni" id="nv-s6"    onclick="gotoSec('sec-s6')"><span class="nd"></span>Transition Table</button>
+      <button class="ni" id="nv-s7"    onclick="gotoSec('sec-s7')"><span class="nd"></span>Equations</button>
+      <button class="ni" id="nv-skm"   onclick="gotoSec('sec-skm')"><span class="nd"></span>K-Maps</button>
+      <button class="ni" id="nv-sv"    onclick="gotoSec('sec-sv')"><span class="nd"></span>Verification</button>
+    </div>
+  </div>
+  <div class="sb-foot">
+    Alexandria University<br>Faculty of Engineering
+    <div id="apill" class="api-pill"><span class="api-d"></span><span id="atxt">checking…</span></div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="hdr">
+    <div class="hdr-tag">Digital Logic Circuits II · Alexandria University</div>
+    <h1>FSM State Reduction &amp; Synthesis</h1>
+    <div class="hdr-sub">Row Matching · Method A: Implication Table · Method B: Partitioning · State Assignment · Q-M Minimization · K-Maps</div>
+  </div>
+
+  <div class="card" id="sec-input">
+    <div class="ct">FSM Setup</div>
+
+    <!-- Step 1: Machine configuration -->
+    <div id="setup-phase" style="margin-bottom:14px">
+      <div class="row" style="gap:18px;flex-wrap:wrap;margin-bottom:12px">
+        <div class="col">
+          <label>MACHINE TYPE</label>
+          <div class="btn-group" style="margin-top:4px">
+            <button class="btn bpr on" id="mt-moore" onclick="setMachineType('moore')">Moore</button>
+            <button class="btn bpr"    id="mt-mealy" onclick="setMachineType('mealy')">Mealy</button>
+          </div>
+        </div>
+        <div class="col">
+          <label>INPUT COLUMNS</label>
+          <select id="sel-ni" onchange="rebuildEmpty()">
+            <option value="1">1  (X = 0, 1)</option>
+            <option value="2" selected>2  (X=0, X=1)</option>
+            <option value="4">4  (X₁X₂ = 00,01,10,11)</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>OUTPUT BITS</label>
+          <select id="sel-obits" onchange="rebuildEmpty()">
+            <option value="1" selected>1-bit  (Z)</option>
+            <option value="2">2-bit  (Z₁Z₂)</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>STATES</label>
+          <select id="sel-n" onchange="rebuildEmpty()">
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option selected>9</option>
+            <option>10</option>
+            <option>11</option>
+            <option>12</option>
+            <option>14</option>
+            <option>16</option>
+            <option>18</option>
+            <option>20</option>
+            <option>22</option>
+            <option>24</option>
+            <option>26</option>
+          </select>
+        </div>
+      </div>
+      <!-- Config summary badge -->
+      <div id="config-badge" style="font-size:10px;color:var(--muted2);margin-bottom:10px"></div>
+      <!-- Presets -->
+      <div class="row" style="margin-bottom:10px">
+        <label style="margin-right:4px">LECTURE EXAMPLES:</label>
+        <div class="btn-group" id="preset-btns"></div>
+      </div>
+    </div>
+
+    <!-- Info note -->
+    <div class="inote" id="inote-txt"></div>
+
+    <!-- Table -->
+    <div class="scroll"><table class="stbl" id="inp-tbl"></table></div>
+
+    <div class="sbar2">
+      <button class="btn pr" id="solve-btn" onclick="solve()">▶ Reduce</button>
+      <button class="btn sm gh" onclick="rebuildEmpty()">Reset Table</button>
+      <button class="btn sm gh" onclick="openBulk()">📋 Paste</button>
+      <span class="stxt" id="st-msg"></span>
+    </div>
+  </div>
+
+  <div id="spinner"><div class="sring"></div><div class="stxt2">Running pipeline…</div></div>
+
+  <div id="results">
+    <div class="stats-grid" id="sec-stats"></div>
+    <div class="card"><div class="ct">Algorithm Log</div><div class="lbox" id="lbox"></div></div>
+
+    <!-- Step 1 -->
+    <div class="card" id="sec-s1">
+      <div class="ct"><span class="sb-badge">1</span>Row Matching — Redundant State Elimination</div>
+      <div id="s1"></div>
+    </div>
+
+    <!-- Method A: Implication Table -->
+    <div class="card" id="sec-s2" style="border-color:rgba(0,200,240,.25)">
+      <div class="ct">
+        <span class="sb-badge" style="background:linear-gradient(135deg,#00c8f0,#38bdf8)">METHOD A</span>
+        Implication Table
+        <span style="font-size:9px;color:var(--muted2);margin-left:8px">(Works for all FSMs including incomplete)</span>
+      </div>
+      <div class="leg">
+        <div class="li"><div class="ld" style="background:var(--rbg);border:1px solid var(--red)"></div>Output mismatch</div>
+        <div class="li"><div class="ld" style="background:var(--rmid);border:1px solid var(--red)"></div>Propagated ✕</div>
+        <div class="li"><div class="ld" style="background:var(--yb);border:2px solid var(--yellow)"></div>Newly marked</div>
+        <div class="li"><div class="ld" style="background:var(--gbg);border:1px solid var(--green)"></div>Compatible ✓</div>
+        <div class="li"><div class="ld" style="background:var(--pb);border:1px solid var(--purple)"></div>Dependency highlight</div>
+      </div>
+      <div class="pass-nav" id="pass-nav"></div>
+      <div id="s2"></div>
+      <div style="font-size:9px;color:var(--muted2);margin-top:7px">Click a compatible cell to highlight its implied dependencies</div>
+      <!-- Circle inside Method A -->
+      <div style="margin-top:18px;border-top:1px solid var(--gb);padding-top:14px">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:12px">▶ EQUIVALENCE CIRCLE</div>
+        <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+          <div id="circ-svg"></div>
+          <div id="circ-classes" style="flex:1;min-width:140px;padding-top:4px"></div>
+        </div>
+      </div>
+      <!-- Reduced table from Method A -->
+      <div style="margin-top:18px;border-top:1px solid var(--gb);padding-top:14px">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--accent);margin-bottom:12px">▶ EQUIVALENT CLASSES &amp; REDUCED TABLE (from Implication Table)</div>
+        <div id="s4-impl"></div>
+      </div>
+    </div>
+
+    <!-- Method B: Partitioning -->
+    <div class="card" id="sec-s3" style="border-color:rgba(192,132,252,.25)">
+      <div class="ct">
+        <span class="sb-badge" style="background:linear-gradient(135deg,#c084fc,#a855f7)">METHOD B</span>
+        Partitioning Method
+        <span style="font-size:9px;color:var(--muted2);margin-left:8px">(Fully specified FSMs only — cross-verify with Method A)</span>
+      </div>
+      <div id="s3"></div>
+      <!-- Reduced table from Method B -->
+      <div style="margin-top:18px;border-top:1px solid var(--gb);padding-top:14px" id="s3-reduced-wrap">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--purple);margin-bottom:12px">▶ EQUIVALENT CLASSES &amp; REDUCED TABLE (from Partitioning)</div>
+        <div id="s4-part"></div>
+      </div>
+    </div>
+
+    <!-- Legacy s4 kept empty for old references -->
+    <div id="s4" style="display:none"></div>
+    <div class="card" id="sec-s5"><div class="ct"><span class="sb-badge">5</span>State Assignment — 3-Rule Adjacency Scoring</div><div id="s5"></div></div>
+    <div class="card">
+      <div class="ct">Adjacency Graph</div>
+      <div id="adj-graph"></div>
+      <div style="font-size:9px;color:var(--muted2);margin-top:7px">Drag nodes · 🔴 Rule 1 (+3) · 🔵 Rule 2 (+2) · 🟠 Combined · Edge width ∝ score</div>
+    </div>
+    <div class="card" id="sec-s6"><div class="ct"><span class="sb-badge">6</span>Binary Transition Table</div><div id="s6"></div></div>
+    <div class="card" id="sec-s7"><div class="ct"><span class="sb-badge">7</span>Excitation Equations — D Flip-Flops + Output Z</div><div id="s7"></div></div>
+    <div class="card" id="sec-skm"><div class="ct"><span class="sb-badge">8</span>K-Maps — Prime Implicant Groups</div><div id="skm"></div></div>
+
+    <div class="card" id="sec-sv">
+      <div class="ct">Equivalence Verification</div>
+      <div style="margin-bottom:10px">
+        <button class="btn sm" onclick="runVerify()">▶ Run (random sequences)</button>
+        <span class="stxt" id="vst" style="margin-left:10px"></span>
+      </div>
+      <div id="svfy"></div>
+    </div>
+    <div class="export-bar" style="text-align:right;margin-top:4px">
+      <button class="btn sm kp" onclick="window.print()">🖨 Export PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="bulk-ov" onclick="closeBulkBg(event)">
+  <div class="modal">
+    <h3>📋 Paste State Table</h3>
+    <p>Format: <code>state  ns_x0  ns_x1  output</code>  (space/tab/comma separated).<br>Use <strong>–</strong> for Don't Care.</p>
+    <textarea class="bta" id="bta" placeholder="a  e  e  1&#10;b  c  e  1&#10;..."></textarea>
+    <div class="berr" id="berr"></div>
+    <div class="row" style="margin-top:10px;justify-content:flex-end">
+      <button class="btn sm dn" onclick="closeBulk()">Cancel</button>
+      <button class="btn sm pr" onclick="parseBulk()">Import</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* PRESETS */
+const PR={
+  p1:{ni:2,rows:[{n:'A',ns:['A','B'],z:'0'},{n:'B',ns:['A','C'],z:'0'},{n:'C',ns:['A','D'],z:'0'},{n:'D',ns:['A','D'],z:'1'}]},
+  p2:{ni:2,rows:[{n:'a',ns:['e','e'],z:'1'},{n:'b',ns:['c','e'],z:'1'},{n:'c',ns:['i','h'],z:'0'},{n:'d',ns:['h','a'],z:'1'},{n:'e',ns:['i','f'],z:'0'},{n:'f',ns:['e','g'],z:'0'},{n:'g',ns:['h','b'],z:'1'},{n:'h',ns:['c','d'],z:'0'},{n:'i',ns:['f','b'],z:'1'}]},
+  p3:{ni:2,rows:[{n:'a',ns:['h','c'],z:'10'},{n:'b',ns:['c','d'],z:'01'},{n:'c',ns:['h','b'],z:'00'},{n:'d',ns:['f','h'],z:'00'},{n:'e',ns:['c','f'],z:'01'},{n:'f',ns:['f','g'],z:'00'},{n:'g',ns:['g','c'],z:'10'},{n:'h',ns:['a','c'],z:'10'}]},
+  lec5ex1:{ni:2,rows:[
+    {n:'a',ns:['b','c'],z:'00'},{n:'b',ns:['d','e'],z:'00'},{n:'c',ns:['f','g'],z:'00'},
+    {n:'d',ns:['h','i'],z:'00'},{n:'e',ns:['j','k'],z:'00'},{n:'f',ns:['d','l'],z:'00'},
+    {n:'g',ns:['j','l'],z:'00'},{n:'h',ns:['h','a'],z:'00'},{n:'i',ns:['j','a'],z:'10'},
+    {n:'j',ns:['d','a'],z:'00'},{n:'k',ns:['b','a'],z:'00'},{n:'l',ns:['b','a'],z:'00'},
+  ]},
+  lec6ex2:{ni:2,rows:[
+    {n:'a',ns:['b','c'],z:'00'},{n:'b',ns:['d','c'],z:'00'},{n:'c',ns:['b','e'],z:'00'},
+    {n:'d',ns:['f','c'],z:'00'},{n:'e',ns:['b','h'],z:'00'},{n:'f',ns:['f','c'],z:'10'},
+    {n:'h',ns:['b','h'],z:'01'},
+  ]},
+  mealy1:{ni:2,mealy:true,ibits:1,rows:[
+    {n:'a',ns:['h','c'],z:'-',zs:['1','0']},{n:'b',ns:['c','d'],z:'-',zs:['0','1']},
+    {n:'c',ns:['h','b'],z:'-',zs:['0','0']},{n:'d',ns:['f','h'],z:'-',zs:['0','0']},
+    {n:'e',ns:['c','f'],z:'-',zs:['0','1']},{n:'f',ns:['f','g'],z:'-',zs:['0','0']},
+    {n:'g',ns:['g','c'],z:'-',zs:['1','0']},{n:'h',ns:['a','c'],z:'-',zs:['1','0']},
+  ]},
+  // Lec5 Incomplete network example (7 states, 2-bit input, 2-bit output, Mealy)
+  inc1:{ni:4,mealy:true,ibits:2,obits:2,rows:[
+    {n:'A',ns:['A','E','-','D'],z:'-',zs:['00','01','--','01']},
+    {n:'B',ns:['-','C','B','D'],z:'-',zs:['--','10','00','11']},
+    {n:'C',ns:['A','C','-','-'],z:'-',zs:['00','10','--','--']},
+    {n:'D',ns:['A','-','-','D'],z:'-',zs:['00','--','--','11']},
+    {n:'E',ns:['-','E','F','-'],z:'-',zs:['--','01','00','--']},
+    {n:'F',ns:['-','E','F','G'],z:'-',zs:['--','10','00','11']},
+    {n:'G',ns:['A','-','-','G'],z:'-',zs:['00','--','--','11']},
+  ]},
+};
+
+/* UTILS */
+const isDC=v=>{
+  if(!v)return true;
+  const s=String(v).trim().toLowerCase();
+  if(!s)return true;
+  if(['-','x','*'].includes(s))return true;
+  // Multi-bit DC: every char is a DC indicator (handles '--', 'xx', '-,-', etc.)
+  return s.split('').every(c=>'-x*, '.includes(c));
+};
+const ham=(a,b)=>{let x=a^b,c=0;while(x){c+=x&1;x>>=1;}return c;};
+const adj=(a,b)=>ham(a,b)===1;
+const pk2=(a,b)=>`${Math.max(a,b)},${Math.min(a,b)}`;
+const esc=s=>String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const zCmp=(z1,z2)=>{
+  if(isDC(z1)||isDC(z2))return true;
+  const s1=String(z1).trim(),s2=String(z2).trim();
+  if(s1===s2)return true;
+  // Per-bit comparison for equal-length multi-bit strings
+  if(s1.length===s2.length)return[...s1].every((c,i)=>'-x*X'.includes(c)||'-x*X'.includes(s2[i])||c===s2[i]);
+  return false;
+};
+
+/* ALGORITHMS */
+function rowMatchJS(states,ni,isMealy){
+  // Iterative row matching: repeat until no more identical rows are found.
+  // For Mealy: compares per-input outputs (zs). For Moore: compares single output (z).
+  // Returns {states, removed (all passes combined), passes (array of per-pass info)}.
+  let current=states.map(s=>({...s,ns:[...s.ns],...(s.zs?{zs:[...s.zs]}:{})}));
+  const totalRemoved={};
+  const passes=[];
+  let passNum=0;
+
+  while(true){
+    passNum++;
+    const rm={};const kept=[];
+
+    const eq=(s1,s2)=>{
+      // --- Output comparison ---
+      if(isMealy){
+        // Mealy: compare per-input outputs (zs) strictly
+        const z1=s1.zs||[];const z2=s2.zs||[];
+        const n=Math.max(z1.length,z2.length,ni||1);
+        for(let x=0;x<n;x++){
+          const a=z1[x],b=z2[x];
+          if(isDC(a)&&isDC(b))continue;
+          if(isDC(a)||isDC(b))return false;
+          if(String(a).trim()!==String(b).trim())return false;
+        }
+      }else{
+        // Moore: strict equality (DC only matches DC)
+        const a=s1.z,b=s2.z;
+        if(isDC(a)&&isDC(b)){/* both DC – match */}
+        else if(isDC(a)||isDC(b))return false;
+        else if(String(a).trim()!==String(b).trim())return false;
+      }
+      // --- Next-state comparison ---
+      return s1.ns.every((v,i)=>{
+        const w=s2.ns[i];
+        if(isDC(v)&&isDC(w))return true;
+        if(isDC(v)||isDC(w))return false;
+        return v===w;
+      });
+    };
+
+    for(const s of current){
+      const canon=kept.find(k=>eq(k,s));
+      if(canon)rm[s.n]=canon.n;
+      else kept.push({...s,ns:[...s.ns],...(s.zs?{zs:[...s.zs]}:{})});
+    }
+
+    if(!Object.keys(rm).length){
+      // No removals this pass — done
+      passes.push({pass:passNum,removed:{},states_after:current.map(s=>({...s}))});
+      break;
+    }
+
+    // Resolve chains (e.g. l→k→j becomes l→j)
+    const rep=n=>{let x=n;while(rm[x])x=rm[x];return x;};
+    // Update NS of kept states to use representatives
+    for(const s of kept)s.ns=s.ns.map(v=>isDC(v)?v:rep(v));
+    // Accumulate
+    for(const[rem,can]of Object.entries(rm))totalRemoved[rem]=rep(can);
+
+    passes.push({pass:passNum,removed:rm,states_after:kept.map(s=>({...s}))});
+    current=kept;
+  }
+
+  return{states:current,removed:totalRemoved,passes};
+}
+
+function implTableJS(states,ni,isMealy){
+  const n=states.length;const idx={};states.forEach((s,i)=>idx[s.n]=i);
+  const cells={};const p0=[];
+  for(let i=1;i<n;i++){for(let j=0;j<i;j++){
+    const si=states[i],sj=states[j];const k=pk2(i,j);
+    const cell={i,j,status:'compat',implied:[],markedPass:-1};
+    let outIncompat=false;
+    if(isMealy){
+      for(let x=0;x<ni;x++){const z1=si.zs?si.zs[x]:si.z,z2=sj.zs?sj.zs[x]:sj.z;if(!isDC(z1)&&!isDC(z2)&&String(z1).trim()!==String(z2).trim()){outIncompat=true;break;}}
+    }else{outIncompat=!zCmp(si.z,sj.z);}
+    if(outIncompat){cell.status='ic_out';cell.markedPass=0;p0.push(k);}
+    else{const seen=new Set();for(let x=0;x<ni;x++){const ns1=si.ns[x],ns2=sj.ns[x];if(isDC(ns1)||isDC(ns2))continue;const ai=idx[ns1],bi=idx[ns2];if(ai==null||bi==null||ai===bi)continue;const ik=pk2(ai,bi);if(ik===k)continue;if(!seen.has(ik)){seen.add(ik);cell.implied.push(ik);}}}
+    cells[k]=cell;
+  }}
+  const passes=[p0];let pn=1;
+  for(;;){const nw=[];for(const k in cells){const c=cells[k];if(c.status!=='compat')continue;for(const imp of c.implied){if(cells[imp]&&cells[imp].status!=='compat'){c.status='ic_prop';c.markedPass=pn;nw.push(k);break;}}}passes.push(nw);if(!nw.length)break;pn++;}
+  return{cells,passes};
+}
+
+function equivClassesJS(cells,states){
+  // For complete networks: Union-Find (equivalence classes)
+  const n=states.length;const p=Array.from({length:n},(_,i)=>i);
+  const find=x=>{while(p[x]!==x){p[x]=p[p[x]];x=p[x];}return x;};
+  const union=(x,y)=>{const rx=find(x),ry=find(y);if(rx!==ry)p[rx]=ry;};
+  for(const k in cells){const c=cells[k];if(c.status==='compat')union(c.i,c.j);}
+  const m={};for(let i=0;i<n;i++){const r=find(i);(m[r]=m[r]||[]).push(states[i].n);}
+  return Object.values(m).sort((a,b)=>states.findIndex(s=>s.n===a[0])-states.findIndex(s=>s.n===b[0]));
+}
+
+function compatClassesJS(cells,states){
+  // For incomplete networks: Bron-Kerbosch maximal cliques + greedy min cover
+  // Score: maximise new coverage first; among ties prefer SMALLER clique (less bloat)
+  const names=states.map(s=>s.n);
+  const ord=Object.fromEntries(names.map((n,i)=>[n,i]));
+  const adj={};names.forEach(n=>adj[n]=new Set());
+  for(const c of Object.values(cells)){
+    if(c.status==='compat'){const a=states[c.i].n,b=states[c.j].n;adj[a].add(b);adj[b].add(a);}
+  }
+  const cliques=[];
+  function bk(R,P,X){
+    if(!P.size&&!X.size){cliques.push(new Set(R));return;}
+    const all=[...P,...X];
+    const u=all.reduce((best,v)=>([...P].filter(p=>adj[v]&&adj[v].has(p)).length>
+      [...P].filter(p=>adj[best]&&adj[best].has(p)).length)?v:best,all[0]);
+    for(const v of [...P].filter(v=>!adj[u]||!adj[u].has(v))){
+      bk([...R,v],new Set([...P].filter(p=>adj[v]&&adj[v].has(p))),new Set([...X].filter(p=>adj[v]&&adj[v].has(p))));
+      P.delete(v);X.add(v);
+    }
+  }
+  bk([],new Set(names),new Set());
+  // Add singleton "cliques" so every state is coverable even if isolated
+  names.forEach(n=>{if(!cliques.some(c=>c.has(n)))cliques.push(new Set([n]));});
+
+  const covered=new Set();const chosen=[];
+  while(covered.size<names.length){
+    const uncov=new Set(names.filter(n=>!covered.has(n)));
+    // Primary: max new states covered. Tie-break: smallest clique (prefer tight groups)
+    const score=c=>{const nw=[...c].filter(n=>uncov.has(n)).length;return[nw,-c.size];};
+    const best=cliques.reduce((a,b)=>{const[sna,szA]=score(a);const[snb,szB]=score(b);
+      return snb>sna||(snb===sna&&szB>szA)?b:a;},cliques[0]);
+    const nw=[...best].filter(n=>uncov.has(n));
+    if(!nw.length){for(const n of uncov)chosen.push(new Set([n]));break;}
+    chosen.push(best);nw.forEach(n=>covered.add(n));
+  }
+  const result=chosen.map(c=>[...c].sort((a,b)=>ord[a]-ord[b]));
+  result.sort((a,b)=>ord[a[0]]-ord[b[0]]);
+  return result;
+}
+
+function partitionJS(states,ni){
+  const steps=[];const byOut={};
+  for(const s of states){const zval=s.zs?s.zs.join('/'):s.z;const k=isDC(zval)?'-':zval;(byOut[k]=byOut[k]||[]).push(s.n);}
+  let part=Object.values(byOut);
+  steps.push({pass:0,partition:part.map(g=>[...g]),reason:'Initial: group by output Z',converged:false});
+  const gOf=(n,p)=>{for(let g=0;g<p.length;g++)if(p[g].includes(n))return g;return-1;};
+  const same=(p1,p2)=>JSON.stringify(p1.map(g=>g.slice().sort()).sort())===JSON.stringify(p2.map(g=>g.slice().sort()).sort());
+  for(let it=1;it<=25;it++){
+    const np=[];for(const grp of part){const sm={};for(const sn of grp){const s=states.find(x=>x.n===sn);const sig=s.ns.map(ns=>isDC(ns)?'*':gOf(ns,part)).join(',');(sm[sig]=sm[sig]||[]).push(sn);}Object.values(sm).forEach(g=>np.push(g));}
+    if(same(part,np)){steps.push({pass:it,partition:np.map(g=>[...g]),reason:'Converged ✓',converged:true});break;}
+    part=np;steps.push({pass:it,partition:part.map(g=>[...g]),reason:'Refined by NS group signatures',converged:false});
+  }
+  return steps;
+}
+
+function buildReducedJS(states,classes,ni){
+  const labels=classes.map((_,i)=>String.fromCharCode(65+i));
+  const s2l={};classes.forEach((cls,i)=>cls.forEach(n=>s2l[n]=labels[i]));
+  return classes.map((cls,i)=>{
+    const rep=states.find(s=>s.n===cls[0]);
+    const row={name:labels[i],members:cls,next_states:rep.ns.map(v=>isDC(v)?'-':(s2l[v]||v)),output:rep.z};
+    if(rep.zs)row.outputs=rep.zs;   // Mealy per-input outputs
+    return row;
+  });
+}
+
+function pairScoresJS(states,ni){
+  const n=states.length;const sc=Array.from({length:n},()=>Array(n).fill(0));const log=[];
+  for(let i=0;i<n;i++){for(let j=i+1;j<n;j++){
+    const si=states[i],sj=states[j];let score=0;const reasons=[];
+    for(let x=0;x<ni;x++){if(!isDC(si.ns[x])&&!isDC(sj.ns[x])&&si.ns[x]===sj.ns[x]){score+=3;reasons.push(`Rule 1 (+3): NS(${si.n},X=${x})=${si.ns[x]}`);}}
+    for(const sk of states){const ns=new Set(sk.ns.filter(v=>!isDC(v)));if(ns.has(si.n)&&ns.has(sj.n)){score+=2;reasons.push(`Rule 2 (+2): both NS of ${sk.n}`);break;}}
+    if(zCmp(si.z,sj.z)&&!isDC(si.z)&&!isDC(sj.z)){score+=1;reasons.push(`Rule 3 (+1): Z=${si.z}`);}
+    sc[i][j]=sc[j][i]=score;if(score>0)log.push({pair:[si.n,sj.n],score,reasons});
+  }}
+  return{scores:sc,score_log:log};
+}
+
+function*combG(a,k){if(k===0){yield[];return;}for(let i=0;i<=a.length-k;i++)for(const r of combG(a.slice(i+1),k-1))yield[a[i],...r];}
+function*permG(a){if(a.length<=1){yield a;return;}for(let i=0;i<a.length;i++)for(const p of permG([...a.slice(0,i),...a.slice(i+1)]))yield[a[i],...p];}
+
+function findAssignmentsJS(states,scores,nb=3){
+  const n=states.length;const k=Math.max(1,Math.ceil(Math.log2(Math.max(n,2))));
+  const tot=Math.pow(2,k);const ac=Array.from({length:tot},(_,i)=>i);
+  const ev=p=>{let t=0;for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)if(adj(p[i],p[j]))t+=scores[i][j];return t;};
+  const res=[];let cnt=0;const LIM=40000;
+  for(const c of combG(ac,n)){for(const p of permG(c)){res.push({score:ev(p),assignment:[...p]});if(++cnt>=LIM)break;}if(cnt>=LIM)break;}
+  res.sort((a,b)=>b.score-a.score);
+  const seen=new Set();const uniq=[];
+  for(const r of res){const ky=r.assignment.join(',');if(!seen.has(ky)){seen.add(ky);uniq.push(r);if(uniq.length>=nb)break;}}
+  return uniq.map(r=>({score:r.score,assignment:r.assignment,
+    mapping:Object.fromEntries(states.map((s,i)=>[s.name||s.n,r.assignment[i].toString(2).padStart(k,'0')])),n_bits:k,
+    adjacency_details:states.flatMap((si,i)=>states.slice(i+1).map((sj,jj)=>{const j=i+jj+1;
+      return adj(r.assignment[i],r.assignment[j])&&scores[i][j]>0
+        ?{state_a:si.name||si.n,code_a:r.assignment[i].toString(2).padStart(k,'0'),state_b:sj.name||sj.n,code_b:r.assignment[j].toString(2).padStart(k,'0'),score:scores[i][j]}:null;
+    }).filter(Boolean))}));
+}
+
+function buildTransTableJS(states,mapping,ni){
+  const k=Object.values(mapping)[0].length;const uc=new Set(Object.values(mapping));
+  const ac2=Array.from({length:Math.pow(2,k)},(_,i)=>i.toString(2).padStart(k,'0'));
+  const rows=[];
+  for(const s of states){const bc=mapping[s.name||s.n];for(let x=0;x<ni;x++){const ns=s.next_states[x];const nb=isDC(ns)?'-'.repeat(k):(mapping[ns]||'-'.repeat(k));
+    // For Mealy: per-input output from outputs[x]; for Moore: state output
+    const outVal=(s.outputs&&s.outputs[x]!=null)?s.outputs[x]:s.output;
+    rows.push({ps_name:s.name||s.n,ps_bin:bc,input:x,ns_name:ns,ns_bin:nb,output:outVal,unused:false,d_bits:[...nb]});}}
+  for(const code of ac2){if(!uc.has(code)){for(let x=0;x<ni;x++)rows.push({ps_name:'(unused)',ps_bin:code,input:x,ns_name:'-',ns_bin:'-'.repeat(k),output:'-',unused:true,d_bits:Array(k).fill('-')});}}
+  rows.sort((a,b)=>parseInt(a.ps_bin,2)-parseInt(b.ps_bin,2)||a.input-b.input);
+  return{rows,k};
+}
+
+function qmJS(mt,dc,nv){
+  if(!mt.length)return[];const all=new Set([...mt,...dc]);
+  if(all.size===Math.pow(2,nv))return[[0,(1<<nv)-1]];
+  const c1=(v,d)=>v.toString(2).split('').filter(b=>b==='1').length;
+  let cur={};for(const m of all){const g=c1(m,0);(cur[g]=cur[g]||new Set()).add(`${m},0`);}
+  const pis=new Set();
+  while(true){const nxt={};const comb=new Set();
+    for(const gi of Object.keys(cur).map(Number).sort()){const g1=cur[gi],g2=cur[gi+1];if(!g2)continue;
+      for(const t1 of g1){for(const t2 of g2){const[v1,d1]=t1.split(',').map(Number);const[v2,d2]=t2.split(',').map(Number);if(d1!==d2)continue;const xr=v1^v2;if(xr===0||(xr&(xr-1))!==0)continue;const nd=d1|xr,nv2=v1&~xr&((1<<nv)-1);(nxt[c1(nv2,nd)]=nxt[c1(nv2,nd)]||new Set()).add(`${nv2},${nd}`);comb.add(t1);comb.add(t2);}}}
+    for(const ts of Object.values(cur))for(const t of ts)if(!comb.has(t))pis.add(t);
+    if(!Object.keys(nxt).length)break;cur=nxt;}
+  const piA=[...pis].map(t=>t.split(',').map(Number));
+  const cov=(pi,m)=>{const[v,d]=pi;for(let b=0;b<nv;b++){if((d>>b)&1)continue;if(((v>>b)&1)!==((m>>b)&1))return false;}return true;};
+  const mtS=new Set(mt);let cov2=new Set();const sel=[];
+  for(const m of mtS){const c=piA.filter(pi=>cov(pi,m));if(c.length===1&&!sel.includes(c[0])){sel.push(c[0]);for(const mm of mtS)if(cov(c[0],mm))cov2.add(mm);}}
+  let rem=[...mtS].filter(m=>!cov2.has(m));let remP=piA.filter(pi=>!sel.includes(pi));
+  while(rem.length&&remP.length){const best=remP.reduce((b,pi)=>rem.filter(m=>cov(pi,m)).length>rem.filter(m=>cov(b,m)).length?pi:b,remP[0]);const nw=rem.filter(m=>cov(best,m));if(!nw.length)break;sel.push(best);cov2=new Set([...cov2,...nw]);rem=rem.filter(m=>!cov2.has(m));remP=remP.filter(p=>p!==best);}
+  return sel;
+}
+
+function piStr(pi,vars){
+  const[v,d]=pi;const n=vars.length;
+  return vars.map((vn,i)=>{const b=n-1-i;if((d>>b)&1)return null;return(v>>b)&1?`<span class="var">${vn}</span>`:`<span class="var">${vn}</span><span class="prime">'</span>`;}).filter(Boolean).join('')||'1';
+}
+
+function excitationJS(states,mapping,ni,isMealy){
+  const k=Object.values(mapping)[0].length;const n2c=Object.fromEntries(Object.entries(mapping).map(([n,c])=>[n,parseInt(c,2)]));
+  const tot=Math.pow(2,k);const nib=ni>1?Math.max(1,Math.ceil(Math.log2(ni))):0;
+  const qv=Array.from({length:k},(_,i)=>`Q${k-1-i}`);
+  const xv=nib===0?[]:nib===1?['X']:Array.from({length:nib},(_,i)=>`X${i}`);
+  const av=[...qv,...xv];const nv=k+nib;const eqs={};
+  for(let bit=0;bit<k;bit++){
+    const ff=`D${bit}`;const mt=[];const dc=[];
+    for(let ps=0;ps<tot;ps++){const sn=Object.entries(n2c).find(([,c])=>c===ps)?.[0];
+      for(let x=0;x<ni;x++){const mi=(ps<<nib)|x;if(!sn){dc.push(mi);continue;}const s=states.find(st=>(st.name||st.n)===sn);if(!s){dc.push(mi);continue;}const ns=s.next_states[x];if(isDC(ns)){dc.push(mi);continue;}const nc=n2c[ns];if(nc==null){dc.push(mi);continue;}if((nc>>bit)&1)mt.push(mi);}}
+    const pis=qmJS(mt,dc,nv);
+    const eq=!mt.length?'0':(new Set([...mt,...dc])).size===Math.pow(2,nv)?'1':pis.length?pis.map(pi=>piStr(pi,av)).join(' <span class="plus">+</span> '):'0';
+    eqs[ff]={equation:eq,minterms:mt,dontcares:dc,var_names:av};
+  }
+  // ── Output Z ──────────────────────────────────────────────────────────────
+  // Mealy: Z(state,input) → use per-input outputs[x]
+  // Moore: Z(state)       → use state output, replicated across inputs
+  const zmt=[],zdc=[];
+  for(let ps=0;ps<tot;ps++){const sn=Object.entries(n2c).find(([,c])=>c===ps)?.[0];
+    for(let x=0;x<ni;x++){const mi=(ps<<nib)|x;
+      if(!sn){zdc.push(mi);continue;}
+      const s=states.find(st=>(st.name||st.n)===sn);
+      if(!s){zdc.push(mi);continue;}
+      // Pick the right output value
+      const zval=isMealy
+        ?(s.outputs&&s.outputs[x]!=null?s.outputs[x]:undefined)
+        :s.output;
+      if(isDC(zval)){zdc.push(mi);continue;}
+      try{if(parseInt(zval))zmt.push(mi);}catch{zdc.push(mi);}
+    }
+  }
+  const zpis=qmJS(zmt,zdc,nv);
+  const zeq=!zmt.length?'0':(new Set([...zmt,...zdc])).size===Math.pow(2,nv)?'1':zpis.length?zpis.map(pi=>piStr(pi,av)).join(' <span class="plus">+</span> '):'0';
+  eqs['Z']={equation:zeq,minterms:zmt,dontcares:zdc,var_names:av};
+  return eqs;
+}
+
+function excitationJKjs(states,mapping,ni){
+  const k=Object.values(mapping)[0].length;const n2c=Object.fromEntries(Object.entries(mapping).map(([n,c])=>[n,parseInt(c,2)]));
+  const tot=Math.pow(2,k);const nib=ni>1?Math.max(1,Math.ceil(Math.log2(ni))):0;
+  const qvars=Array.from({length:k},(_,i)=>`Q${k-1-i}`);
+  const xvars=nib===0?[]:nib===1?['X']:Array.from({length:nib},(_,i)=>`X${i}`);
+  const av=[...qvars,...xvars];const nv=k+nib;const eqs={};
+  for(let bit=0;bit<k;bit++){
+    const jmt=[],jdc=[],kmt=[],kdc=[];
+    for(let ps=0;ps<tot;ps++){
+      const sn=Object.entries(n2c).find(([,c])=>c===ps)?.[0];const psBit=(ps>>bit)&1;
+      for(let x=0;x<ni;x++){
+        const mi=(ps<<nib)|x;
+        if(!sn){jdc.push(mi);kdc.push(mi);continue;}
+        const s=states.find(st=>(st.name||st.n)===sn);if(!s){jdc.push(mi);kdc.push(mi);continue;}
+        const ns=s.next_states[x];if(isDC(ns)){jdc.push(mi);kdc.push(mi);continue;}
+        const nc=n2c[ns];if(nc==null){jdc.push(mi);kdc.push(mi);continue;}
+        const nsBit=(nc>>bit)&1;
+        if(psBit===0){if(nsBit===1)jmt.push(mi);kdc.push(mi);}
+        else{jdc.push(mi);if(nsBit===0)kmt.push(mi);}
+      }
+    }
+    for(const[nm,mt,dc]of[[`J${bit}`,jmt,jdc],[`K${bit}`,kmt,kdc]]){
+      const pis=qmJS(mt,dc,nv);
+      const eq=!mt.length?'0':(new Set([...mt,...dc])).size===Math.pow(2,nv)?'1':pis.length?pis.map(p=>piStr(p,av)).join(' <span class="plus">+</span> '):'0';
+      eqs[nm]={equation:eq,minterms:mt,dontcares:dc,var_names:av};
+    }
+  }
+  return eqs;
+}
+
+function simFSM(states,start,seq,ni){
+  const m={};states.forEach(s=>m[s.name||s.n]=s);let cur=start;const outs=[];
+  for(const x of seq){
+    const s=m[cur];if(!s)break;
+    // Mealy: output depends on current input; Moore: output depends on state only
+    const xi=x%ni;
+    const outVal=(s.outputs&&s.outputs.length>xi)?s.outputs[xi]:s.output||'-';
+    outs.push(outVal);
+    const ns=s.next_states[xi];if(isDC(ns))break;cur=ns;
+  }
+  return outs;
+}
+
+/* K-MAP RENDERER */
+const GR2=[0,1,3,2];const GR=[0,1];const GR4=[0,1,3,2];
+const KCLR=['kh0','kh1','kh2','kh3','kh4'];
+const KSWATCH=['#ff4455','#00c8f0','#c084fc','#fb923c','#22f08a'];
+
+function buildKmap(minterms,dontcares,nv,varNames,title){
+  if(nv<2||nv>4)return`<div class="kmap-wrap"><div class="kmap-title">${title}</div><div style="font-size:10px;color:var(--muted2)">${nv} variables: K-map not shown (supported: 2–4)</div></div>`;
+  const mtS=new Set(minterms);const dcS=new Set(dontcares);
+  const pis=qmJS(minterms,dontcares,nv);
+  let rV,cV;if(nv===2){rV=1;cV=1;}else if(nv===3){rV=1;cV=2;}else{rV=2;cV=2;}
+  const nR=Math.pow(2,rV);const nC=Math.pow(2,cV);
+  const rG=nR===4?GR4:GR;const cG=nC===4?GR4:GR2.slice(0,nC);
+  const cellM=(ri,ci)=>(rG[ri]<<cV)|cG[ci];
+  const cov=(pi,m)=>{const[v,d]=pi;for(let b=0;b<nv;b++){if((d>>b)&1)continue;if(((v>>b)&1)!==((m>>b)&1))return false;}return true;};
+  function cellPIC(m){for(let i=0;i<pis.length;i++){if(cov(pis[i],m))return KCLR[i%KCLR.length];}return'';}
+  const rVN=varNames.slice(0,rV);const cVN=varNames.slice(rV,rV+cV);
+  const gLbl=(g,vs)=>vs.map((v,i)=>{const b=vs.length-1-i;return((g>>b)&1)?v:v+"'"}).join('');
+  let h=`<div class="kmap-wrap"><div class="kmap-title">${title}</div>`;
+  h+=`<table class="kmap-tbl"><thead><tr><th>${rVN.join('')} \\ ${cVN.join('')}</th>`;
+  for(let ci=0;ci<nC;ci++)h+=`<th>${gLbl(cG[ci],cVN)}</th>`;
+  h+=`</tr></thead><tbody>`;
+  for(let ri=0;ri<nR;ri++){
+    h+=`<tr><th>${gLbl(rG[ri],rVN)}</th>`;
+    for(let ci=0;ci<nC;ci++){
+      const m=cellM(ri,ci);let val,cls='';
+      if(mtS.has(m)){val='1';cls=cellPIC(m)||'k1';}
+      else if(dcS.has(m)){val='×';cls='kd';}
+      else{val='0';cls='k0';}
+      h+=`<td class="${cls}" data-tip="m${m} (${m.toString(2).padStart(nv,'0')}) = ${val}">${val}</td>`;
+    }
+    h+=`</tr>`;
+  }
+  h+=`</tbody></table>`;
+  if(pis.length){h+=`<div class="kmap-leg">`;pis.forEach((pi,i)=>{const expr=piStr(pi,varNames).replace(/<span[^>]*>/g,'').replace(/<\/span>/g,'');h+=`<div class="kmap-leg-i"><div class="kmap-dot" style="background:${KSWATCH[i%KSWATCH.length]};opacity:.8"></div><span style="font-size:10px;color:var(--text)">${expr||'1'}</span></div>`;});h+=`</div>`;}
+  h+=`</div>`;return h;
+}
+
+/* API */
+let apiAvail=false;
+async function checkApi(){
+  try{const r=await fetch('http://localhost:5000/api/ping',{signal:AbortSignal.timeout(1500)});const d=await r.json();apiAvail=d.status==='ok';}catch{apiAvail=false;}
+  const el=document.getElementById('apill');el.className='api-pill'+(apiAvail?' ok':' fail');
+  document.getElementById('atxt').textContent=apiAvail?'backend ✓':'standalone mode';
+}
+async function callApi(ep,data){const r=await fetch(`http://localhost:5000${ep}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(30000)});return r.json();}
+
+/* STATE */
+let _reduced=null,_origStates=null,_rawStates=null,_ni=2,_pd=null,_cp=0;
+let _machineType='moore'; // 'moore' | 'mealy'
+let _obits=1;             // output bits per state/transition
+
+// ── Machine type toggle ──────────────────────────────────────────────────
+function setMachineType(t){
+  _machineType=t;
+  document.getElementById('mt-moore').classList.toggle('on',t==='moore');
+  document.getElementById('mt-mealy').classList.toggle('on',t==='mealy');
+  updateConfigBadge();
+  rebuildEmpty();
+}
+
+// ── Config badge + note ──────────────────────────────────────────────────
+function updateConfigBadge(){
+  const ni=parseInt(document.getElementById('sel-ni').value);
+  _obits=parseInt(document.getElementById('sel-obits').value);
+  const n=parseInt(document.getElementById('sel-n').value);
+  const mt=_machineType==='moore'?'Moore':'Mealy';
+  const zDesc=_obits===1?'Z':'Z₁Z₂';
+  document.getElementById('config-badge').innerHTML=
+    `<span style="color:var(--accent)">${mt}</span> &nbsp;·&nbsp; `+
+    `<span style="color:var(--a2)">${ni} input column${ni>1?'s':''}</span> &nbsp;·&nbsp; `+
+    `<span style="color:var(--yellow)">${_obits}-bit output (${zDesc})</span> &nbsp;·&nbsp; `+
+    `<span style="color:var(--text)">${n} states</span>`;
+  const note = _machineType==='moore'
+    ? `<strong>Moore:</strong> Z depends on state only — one Z column per row.`
+    : `<strong>Mealy:</strong> Z depends on state + input — one Z column <em>per input</em>.`;
+  document.getElementById('inote-txt').innerHTML=
+    note+` &nbsp;|&nbsp; Use <strong>–</strong> or <strong>x</strong> for Don't Care.`;
+}
+
+// ── Preset buttons (dynamic based on machine type) ───────────────────────
+const PRESET_META={
+  p1:    {label:'Lec6 Ex1',  mealy:false},
+  p2:    {label:'Lec5 Ex2',  mealy:false},
+  p3:    {label:'Lec5 Ex3',  mealy:false},
+  lec5ex1:{label:'Lec5 Ex1',mealy:false},
+  lec6ex2:{label:'Lec6 Ex2',mealy:false},
+  mealy1:{label:'Mealy Ex',  mealy:true},
+  inc1:  {label:'Incomplete',mealy:true},
+};
+function refreshPresetButtons(){
+  const c=document.getElementById('preset-btns');
+  c.innerHTML=Object.entries(PRESET_META).map(([k,m])=>{
+    const active=m.mealy===(_machineType==='mealy');
+    const style=active?'':'opacity:.4;pointer-events:none';
+    return `<button class="btn bpr" style="${style}" onclick="loadP('${k}')">${m.label}</button>`;
+  }).join('');
+}
+
+/* SOLVE */
+async function solve(){
+  const raw=getTableData();if(!raw){setSt('⚠ Fill all state names.',true);return;}
+  if(raw.length<2){setSt('⚠ At least 2 states.',true);return;}
+  const names=new Set(raw.map(s=>s.n));
+  if(names.size!==raw.length){setSt('⚠ Duplicate state names detected.',true);return;}
+  for(const s of raw){
+    for(let x=0;x<s.ns.length;x++){const ns=s.ns[x];if(!isDC(ns)&&!names.has(ns)){setSt(`⚠ Unknown next state "${ns}" in row "${s.n}" (X=${x})`,true);return;}}
+    if(_machineType==='mealy'&&s.zs){for(let x=0;x<s.zs.length;x++){if(s.zs[x]&&s.zs[x]!=='-'&&s.zs[x]!=='x'&&!/^[01x\-]+$/.test(s.zs[x])){setSt(`⚠ Invalid output "${s.zs[x]}" in row "${s.n}" (X=${x})`,true);return;}}}
+  }
+  if(raw.length>12&&!confirm(`${raw.length} states — synthesis may be slow. Continue?`))return;
+  // Disable button while running
+  const solveBtn=document.querySelector('.btn.pr');
+  if(solveBtn){solveBtn.textContent='Solving…';solveBtn.disabled=true;solveBtn.style.opacity='.6';}
+  document.getElementById('lbox').innerHTML='';setSt('');
+  _ni=parseInt(document.getElementById('sel-ni').value);_obits=parseInt(document.getElementById('sel-obits').value);
+  document.getElementById('spinner').style.display='block';
+  document.getElementById('results').classList.remove('on');
+  addLog(`Pipeline: ${raw.length} states, ${_ni} input(s).`,'');
+  // Detect incomplete BEFORE any removal — incomplete networks must keep ALL states
+  // because a state with DC next-states might still be reachable via other paths
+  // that only become known after reduction. Implication table handles them correctly.
+  const isIncomplete=raw.some(s=>s.ns&&s.ns.some(ns=>isDC(ns)));
+  function rmUnreach(states){if(!states.length)return{states,removed:[]};const sm=Object.fromEntries(states.map(s=>[s.n,s]));const reach=new Set([states[0].n]);const q=[states[0].n];while(q.length){const c=q.shift();const s=sm[c];if(!s)continue;for(const ns of s.ns)if(!isDC(ns)&&sm[ns]&&!reach.has(ns)){reach.add(ns);q.push(ns);}}return{states:states.filter(s=>reach.has(s.n)),removed:states.filter(s=>!reach.has(s.n)).map(s=>s.n)};}
+  let reach,unr;
+  if(isIncomplete){
+    // Skip unreachable removal — keep every state as-is
+    reach=raw;unr=[];
+    addLog('Incomplete network — unreachable removal skipped (all states kept).','y');
+  }else{
+    const r=rmUnreach(raw);reach=r.states;unr=r.removed;
+    if(unr.length)addLog(`Unreachable removed: ${unr.join(', ')}`,'y');
+  }
+  let result=null;
+  if(apiAvail){try{result=await callApi('/api/reduce',{states:reach.map(s=>({name:s.n,next_states:s.ns,output:s.z,outputs:s.zs})),num_inputs:_ni,n_best:10,is_mealy:_machineType==='mealy'});if(result.error)throw new Error(result.error);addLog('Backend ✓','g');}catch(e){addLog(`Backend fallback: ${e.message}`,'y');result=null;}}
+  if(!result){
+    addLog('JS algorithms\u2026','');
+    const isMealy=_machineType==='mealy';
+    const rm=rowMatchJS(reach,_ni,isMealy);
+    const{cells,passes}=implTableJS(rm.states,_ni,isMealy);
+    const hasIncomp=rm.states.some(s=>s.ns&&s.ns.some(ns=>isDC(ns)));
+    const classes=hasIncomp?compatClassesJS(cells,rm.states):equivClassesJS(cells,rm.states);
+    const reduced=buildReducedJS(rm.states,classes,_ni);
+    const pt=partitionJS(rm.states,_ni);
+    const{scores,score_log}=pairScoresJS(reduced,_ni);
+    const bestA=findAssignmentsJS(reduced,scores,10);
+    let trows=null,excit=null,jkExcit=null;
+    if(bestA.length){
+      const{rows}=buildTransTableJS(reduced,bestA[0].mapping,_ni);trows=rows;
+      const _rSt=reduced.map(s=>({name:s.name,next_states:s.next_states,output:s.output,outputs:s.outputs}));
+      excit=excitationJS(_rSt,bestA[0].mapping,_ni,isMealy);
+      jkExcit=excitationJKjs(_rSt,bestA[0].mapping,_ni);
+    }
+    const sc2={};for(const[k,v]of Object.entries(cells))sc2[k]=v;
+    const rmPassesSer=rm.passes.map(p=>({pass:p.pass,removed:p.removed,
+      states_after:p.states_after.map(s=>({name:s.n,next_states:s.ns,output:s.z,outputs:s.zs}))}));
+    result={success:true,log:[],
+      raw_states:reach.map(s=>({name:s.n,next_states:s.ns,output:s.z,outputs:s.zs})),
+      row_matching:{removed:rm.removed,states_after:rm.states.map(s=>({name:s.n,next_states:s.ns,output:s.z,outputs:s.zs})),passes:rmPassesSer},
+      implication_table:{cells:sc2,passes,states:rm.states.map(s=>({name:s.n,next_states:s.ns,output:s.z,outputs:s.zs}))},
+      partitioning:pt,classes,reduced,state_assignment:{pair_scores:scores,score_log,best_assignments:bestA},
+      transition_table:trows,excitation:excit,jk_excitation:jkExcit,verification:null};
+    addLog(`Done: ${reach.length} → ${reduced.length} states.`,'g');
+  }
+  if(result.log)result.log.forEach(l=>addLog(l,''));
+  _reduced=result.reduced;_origStates=result.implication_table.states;
+  _rawStates=result.raw_states||result.implication_table.states;
+  document.getElementById('spinner').style.display='none';
+  if(solveBtn){solveBtn.textContent='▶ Reduce & Synthesize';solveBtn.disabled=false;solveBtn.style.opacity='1';}
+  renderAll(result);
+  document.getElementById('results').classList.add('on');
+  document.getElementById('nav-res').style.display='';
+  setTimeout(()=>document.getElementById('sec-stats').scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+/* RENDER ALL */
+function renderAll(r){
+  const safe=(fn,...a)=>{try{fn(...a);}catch(e){console.warn(fn.name,e);}};
+  safe(renderStats,r);safe(renderS1,r.row_matching);safe(renderS2,r.implication_table);
+  safe(renderS3,r.partitioning,r.implication_table.states);
+  safe(renderS4impl,r.classes,r.reduced,r.implication_table.states);
+  safe(renderS4part,r.partitioning,r.implication_table.states);
+  safe(renderS5,r.state_assignment,r.reduced);
+  safe(renderAdjGraph,r.state_assignment,r.reduced);
+  safe(renderS6,r.transition_table,r.state_assignment?.best_assignments?.[0]);
+  safe(renderS7,r.excitation,r.jk_excitation,r.state_assignment?.best_assignments?.[0]);
+  safe(renderKmaps,r.excitation,r.state_assignment?.best_assignments?.[0],r.jk_excitation);
+  safe(renderCircle,r.implication_table.states,r.implication_table.cells,r.classes);
+  if(r.verification)safe(renderVerify,r.verification);
+}
+
+function renderStats(r){
+  const n0=r.implication_table.states.length+Object.keys(r.row_matching.removed||{}).length;
+  const nr=r.reduced.length;const saved=n0-nr;const pct=n0>0?Math.round(saved/n0*100):0;
+  const k0=Math.max(1,Math.ceil(Math.log2(Math.max(n0,2))));const k1=Math.max(1,Math.ceil(Math.log2(Math.max(nr,2))));
+  const ps=(r.implication_table.passes||[]).length-1;const bs=r.state_assignment?.best_assignments?.[0]?.score||0;
+  const cards=[
+    {cls:'cc',label:'States Reduced',val:`${n0} → ${nr}`,sub:`${saved} eliminated (${pct}%)`,bar:pct},
+    {cls:'cg',label:'Flip-Flops',val:`${k0} → ${k1}`,sub:`Saved ${k0-k1} FF${k0-k1!==1?'s':''}`,bar:Math.round((k0-k1)/Math.max(k0,1)*100)},
+    {cls:'cp',label:'Propagation Passes',val:ps,sub:'Implication table passes',bar:Math.min(ps*20,100)},
+    {cls:'co',label:'Assignment Score',val:bs,sub:'Best 3-rule adjacency score',bar:Math.min(bs*10,100)},
+  ];
+  document.getElementById('sec-stats').innerHTML=cards.map(c=>`<div class="sc ${c.cls}"><div class="sl">${c.label}</div><div class="sv">${c.val}</div><div class="ss">${c.sub}</div><div class="sbar"><div class="sbf" style="width:${c.bar}%"></div></div></div>`).join('');
+  requestAnimationFrame(()=>{document.querySelectorAll('.sbf').forEach((el,i)=>{const w=el.style.width;el.style.width='0%';setTimeout(()=>el.style.width=w,80+i*60);});});
+}
+
+function renderS1(rm){
+  const isMealy=_machineType==='mealy';
+  const ni=_ni;
+  const totalRm=rm.removed||{};
+  const passes=rm.passes||[];
+
+  // Helper: build a mini state-transition table from a states array
+  // states have {name, next_states, output, outputs}
+  function miniTable(states){
+    if(!states||!states.length)return'';
+    let h=`<div class="scroll" style="margin-top:8px"><table class="rtbl"><thead><tr><th>P.S.</th>`;
+    if(isMealy){
+      for(let x=0;x<ni;x++)h+=`<th colspan="2" style="background:rgba(0,200,240,.06);font-size:9px">${colLabel(x,ni)}</th>`;
+      h+=`</tr><tr><th></th>`;
+      for(let x=0;x<ni;x++)h+=`<th style="font-size:9px;color:var(--a2)">N.S.</th><th style="font-size:9px;color:var(--yellow)">Z</th>`;
+    }else{
+      for(let x=0;x<ni;x++)h+=`<th>N.S. (${colLabel(x,ni)})</th>`;
+      h+=`<th>Z</th>`;
+    }
+    h+=`</tr></thead><tbody>`;
+    for(const r of states){
+      h+=`<tr><td class="sn">${r.name}</td>`;
+      if(isMealy){
+        for(let x=0;x<ni;x++){
+          const ns=(r.next_states||[])[x]||'-';
+          const zv=(r.outputs||[])[x]||'-';
+          h+=`<td class="ns">${ns}</td><td class="out">${zv}</td>`;
+        }
+      }else{
+        (r.next_states||[]).forEach(ns=>h+=`<td class="ns">${ns}</td>`);
+        h+=`<td class="out">${r.output||'-'}</td>`;
+      }
+      h+=`</tr>`;
+    }
+    h+=`</tbody></table></div>`;
+    return h;
+  }
+
+  let h='';
+  if(!Object.keys(totalRm).length){
+    h=`<div style="font-size:11px;color:var(--muted2)">No redundant rows — all states have unique rows.</div>`;
+    // Still show the original table
+    h+=miniTable(rm.states_after);
+  }else{
+    h+=`<div style="font-size:11px;color:var(--muted2);margin-bottom:8px">${Object.keys(totalRm).length} redundant state(s) removed across ${passes.filter(p=>Object.keys(p.removed).length).length} pass(es):</div>`;
+
+    // Show each pass that made removals
+    passes.forEach(p=>{
+      const pRm=p.removed||{};
+      if(!Object.keys(pRm).length)return; // skip termination pass
+      h+=`<div style="margin-bottom:12px;border-left:2px solid var(--yellow);padding-left:10px">`;
+      h+=`<div style="font-size:10px;color:var(--yellow);font-weight:bold;margin-bottom:4px">Pass ${p.pass}</div>`;
+      h+=`<div class="rm-list" style="margin-bottom:6px">`;
+      for(const[rem,can]of Object.entries(pRm))
+        h+=`<div class="rm-item"><span style="color:var(--red)">${rem}</span> ≡ <span style="color:var(--green)">${can}</span> <span style="font-size:9px;color:var(--muted2)">(identical row)</span></div>`;
+      h+=`</div>`;
+      h+=`<div style="font-size:9px;color:var(--muted2);margin-bottom:3px">State table after Pass ${p.pass} (${p.states_after.length} states):</div>`;
+      h+=miniTable(p.states_after);
+      h+=`</div>`;
+    });
+  }
+  h+=`<div style="font-size:9px;color:var(--muted2);margin-top:10px">Final after row matching (${rm.states_after.length} states): [${rm.states_after.map(s=>s.name).join(', ')}]</div>`;
+  // Show final table if we had removals but no pass details (e.g. API mode)
+  const shownAny=passes.some(p=>Object.keys(p.removed||{}).length);
+  if(Object.keys(totalRm).length&&!shownAny){
+    h+=`<div style="font-size:9px;color:var(--muted2);margin-bottom:3px;margin-top:6px">State table after row matching:</div>`;
+    h+=miniTable(rm.states_after);
+  }
+  document.getElementById('s1').innerHTML=h;
+}
+
+function renderS2(it){const{states,cells,passes}=it;_pd={states,cells,passes};_cp=0;buildPassNav(passes.length);showPass(0);}
+
+function buildPassNav(tot){
+  let h=`<button class="btn sm gh" onclick="chPass(-1)">◀</button><div class="pdots">`;
+  for(let p=0;p<tot;p++)h+=`<div class="pdot${p===0?' active':''}" id="pd${p}" onclick="showPass(${p})" data-tip="Pass ${p}"></div>`;
+  h+=`</div><button class="btn sm gh" onclick="chPass(1)">▶</button><span class="pcnt" id="pcnt">Pass 0 / ${tot-1}</span>`;
+  document.getElementById('pass-nav').innerHTML=h;
+}
+
+function chPass(d){showPass(Math.max(0,Math.min(_pd.passes.length-1,_cp+d)));}
+
+function showPass(p){
+  _cp=p;const{states,cells,passes}=_pd;const n=states.length;
+  const nw=passes[p]||[];const nwS=new Set(Array.isArray(nw[0])?nw.map(k=>typeof k==='string'?k:`${k[0]},${k[1]}`):nw);
+  document.querySelectorAll('.pdot').forEach((d,i)=>{d.className='pdot'+(i<p?' done':i===p?' active':'');});
+  document.getElementById('pcnt').textContent=`Pass ${p} / ${passes.length-1}`;
+  const nNew=nw.length;
+  let title,badge='';
+  if(p===0){title='Pass 0 — Initial Marking (output comparison)';if(nNew)badge=`<span style="font-size:8px;background:var(--yb);color:var(--yellow);border:1px solid var(--yellow);padding:1px 6px;border-radius:2px">${nNew} marked</span>`;}
+  else if(!nNew){title=`Pass ${p} — Converged ✓`;}
+  else{title=`Pass ${p} — Propagation`;badge=`<span style="font-size:8px;background:var(--yb);color:var(--yellow);border:1px solid var(--yellow);padding:1px 6px;border-radius:2px">${nNew} newly marked</span>`;}
+  const hc='pass-nav'+(!nNew&&p>0?' style="color:var(--green)"':' style="color:var(--yellow)"');
+  // Triangle: rows = states[1..n-1] labels LEFT, col labels BOTTOM
+  let tbl=`<div class="scroll"><table class="impl-tbl"><tbody>`;
+  for(let ri=0;ri<n-1;ri++){const i=ri+1;tbl+=`<tr><th class="rh">${states[i].name}</th>`;
+    for(let j=0;j<n-1;j++){if(j>=i){tbl+=`<td class="em"></td>`;continue;}const ck=`${Math.max(i,j)},${Math.min(i,j)}`;const cell=cells[ck]||cells[`${i},${j}`];tbl+=cellH(cell,states,p,nwS,ck);}
+    tbl+=`</tr>`;}
+  tbl+=`<tr><th class="co"></th>`;for(let j=0;j<n-1;j++)tbl+=`<th class="ch">${states[j].name}</th>`;tbl+=`</tr>`;
+  tbl+=`</tbody></table></div>`;
+  document.getElementById('s2').innerHTML=`<div style="font-size:10px;letter-spacing:1px;margin-bottom:8px;${!nNew&&p>0?'color:var(--green)':'color:var(--yellow)'}">${title} ${badge}</div>${tbl}`;
+  document.querySelectorAll('.impl-tbl td.c').forEach(td=>td.addEventListener('click',()=>hiDeps(td,cells,states)));
+}
+
+function cellH(cell,states,pi,nwS,ck){
+  if(!cell)return`<td class="em"></td>`;
+  const{i,j,status,implied}=cell;const si=states[i],sj=states[j];
+  // Handle both camelCase (JS) and snake_case (Flask API)
+  const markedPass = cell.markedPass ?? cell.marked_pass ?? -1;
+  // A cell is incompatible AT this pass only if it was marked in this or an earlier pass
+  const incompatHere = markedPass !== -1 && markedPass <= pi;
+  const isN = nwS.has(ck) && pi > 0 && markedPass === pi;
+  if(incompatHere){
+    let cls=isN?'c in':(status==='ic_out'?'c io':'c ip');
+    const r=status==='ic_out'
+      ?`Output mismatch:\nZ(${si.name})=${si.output} ≠ Z(${sj.name})=${sj.output}`
+      :`Propagated in Pass ${markedPass}\n(implied pair was ✕)`;
+    return`<td class="${cls}" data-tip="${esc(isN?`★ Newly marked P${pi}\n${r}`:r)}">✕</td>`;
+  }
+  // Still compatible at this pass — show implied pairs (even if it will die later)
+  const impN=(implied||[]).map(imp=>{const[a,b]=typeof imp==='string'?imp.split(',').map(Number):imp;return`${states[a].name}${states[b].name}`;});
+  if(!impN.length)return`<td class="c chk" data-tip="Compatible — no constraints\n(${si.name},${sj.name})">✓</td>`;
+  const tip=`Compatible\nImplies: ${impN.map(p=>`(${p[0]},${p[1]})`).join(', ')}\nClick to highlight`;
+  return`<td class="c ok" data-imp="${impN.join(' ')}" data-tip="${esc(tip)}">${impN.map(p=>`<span style="display:block">${p}</span>`).join('')}</td>`;
+}
+
+function hiDeps(td,cells,states){
+  document.querySelectorAll('.impl-tbl td.hi').forEach(t=>t.classList.remove('hi'));
+  const ia=td.getAttribute('data-imp');if(!ia)return;
+  ia.split(' ').forEach(pair=>{if(!pair||pair.length<2)return;const a=pair[0],b=pair[1];
+    const ai=states.findIndex(s=>s.name===a),bi=states.findIndex(s=>s.name===b);if(ai<0||bi<0)return;
+    const ck=`${Math.max(ai,bi)},${Math.min(ai,bi)}`;
+    document.querySelectorAll('.impl-tbl tbody tr').forEach((tr,ri)=>{const i=ri+1;tr.querySelectorAll('td.c').forEach((td2,j)=>{if(j<i&&`${Math.max(i,j)},${Math.min(i,j)}`===ck)td2.classList.add('hi');});});
+  });
+}
+
+function renderS3(steps,origStates){
+  const hasIncomp=(origStates||[]).some(s=>(s.next_states||[]).some(ns=>!ns||['-','x','X','*',''].includes(String(ns).trim())));
+  if(hasIncomp){
+    document.getElementById('s3').innerHTML=`<div style="color:var(--yellow);font-size:11px;padding:8px 0"><strong>Incompletely Specified Network</strong> — Partitioning method is not applicable.<br>Use <strong>Method A (Implication Table)</strong> for the correct result above.</div>`;
+    const w=document.getElementById('s3-reduced-wrap');if(w)w.style.display='none';return;
+  }
+  const last=steps[steps.length-1];
+  const lblOf=g=>{const m=new Set(g);for(let i=0;i<last.partition.length;i++)if(last.partition[i].some(s=>m.has(s)))return String.fromCharCode(65+i);return'?';};
+  let h='';
+  steps.forEach(s=>{h+=`<div class="pt-step"><div class="pt-title ${s.converged?'g':'y'}">Pass ${s.pass} — ${s.reason}</div><div class="pt-groups">`;s.partition.forEach(g=>{h+=`<div class="pt-box"><div class="pt-lbl">${lblOf(g)}</div><div class="pt-mem">{${g.join(', ')}}</div></div>`;});h+=`</div></div>`;});
+  document.getElementById('s3').innerHTML=h;
+}
+
+// Shared: build reduced table HTML
+function buildReducedTableHTML(classes,reduced){
+  const ni=reduced[0]?.next_states?.length||_ni;
+  const CLRS=['#22f08a','#ff4455','#00c8f0','#fb923c','#c084fc','#ffd23f','#f472b6','#38bdf8'];
+  let h=`<div class="eq-row" style="margin-bottom:12px">`;
+  classes.forEach((cls,i)=>{
+    const clr=CLRS[i%CLRS.length];
+    h+=`<div class="eq-box" style="border-color:${clr}"><span class="eq-lbl" style="color:${clr}">${reduced[i]?.name||String.fromCharCode(65+i)}</span><span class="eq-m">{${cls.join(', ')}}</span></div>`;
+  });
+  h+=`</div><div class="scroll"><table class="rtbl"><thead><tr><th>P.S.</th><th>Members</th>`;
+  if(_machineType==='mealy'){
+    for(let x=0;x<ni;x++)h+=`<th colspan="2" style="background:rgba(0,200,240,.06);font-size:9px">${colLabel(x,ni)}</th>`;
+    h+=`</tr><tr><th></th><th></th>`;
+    for(let x=0;x<ni;x++){h+=`<th style="font-size:9px;color:var(--a2)">N.S.</th><th style="font-size:9px;color:var(--yellow)">Z</th>`;}
+    h+=`</tr></thead><tbody>`;
+    for(const r of reduced){
+      h+=`<tr><td class="sn">${r.name}</td><td class="mbr">{${r.members.join(', ')}}</td>`;
+      for(let x=0;x<ni;x++){h+=`<td class="ns">${r.next_states[x]||'-'}</td><td class="out">${(r.outputs||[])[x]||r.output||'-'}</td>`;}
+      h+=`</tr>`;
+    }
+  }else{
+    for(let x=0;x<ni;x++)h+=`<th>N.S. (${colLabel(x,ni)})</th>`;
+    h+=`<th>Z</th></tr></thead><tbody>`;
+    for(const r of reduced){h+=`<tr><td class="sn">${r.name}</td><td class="mbr">{${r.members.join(', ')}}</td>`;r.next_states.forEach(ns=>h+=`<td class="ns">${ns}</td>`);h+=`<td class="out">${r.output}</td></tr>`;}
+  }
+  return h+`</tbody></table></div>`;
+}
+
+// Method A reduced table
+function renderS4impl(classes,reduced,origStates){
+  const el=document.getElementById('s4-impl');if(!el)return;
+  el.innerHTML=buildReducedTableHTML(classes,reduced);
+}
+
+// Method B reduced table (built from partitioning final step)
+function renderS4part(partSteps,origStates){
+  const el=document.getElementById('s4-part');const wrap=document.getElementById('s3-reduced-wrap');if(!el)return;
+  const hasIncompNS=(origStates||[]).some(s=>(s.next_states||[]).some(ns=>!ns||['-','x','X','*',''].includes(String(ns).trim())));
+  if(hasIncompNS){if(wrap)wrap.style.display='none';return;}
+  if(wrap)wrap.style.display='';
+  const lastStep=partSteps[partSteps.length-1];if(!lastStep)return;
+  const classes2=lastStep.partition;
+  const labels=classes2.map((_,i)=>String.fromCharCode(65+i));
+  const s2l={};classes2.forEach((cls,i)=>cls.forEach(n=>s2l[n]=labels[i]));
+  const smap=Object.fromEntries(origStates.map(s=>[s.name||s.n,s]));
+  const reduced2=classes2.map((cls,i)=>{
+    const rep=smap[cls[0]];if(!rep)return{name:labels[i],members:cls,next_states:[],output:'-'};
+    const ns=(rep.next_states||[]).map(v=>(!v||['-','x'].includes(String(v).trim()))?'-':(s2l[v]||v));
+    return{name:labels[i],members:cls,next_states:ns,output:rep.output||'-',outputs:rep.outputs};
+  });
+  el.innerHTML=buildReducedTableHTML(classes2,reduced2);
+}
+
+function renderS4(classes,reduced){/* legacy stub */}
+
+function renderS5(sa,reduced){
+  if(!sa){document.getElementById('s5').innerHTML='<div style="color:var(--muted2);font-size:11px">Not available.</div>';return;}
+  const{pair_scores,score_log,best_assignments}=sa;
+  let h=`<div style="background:rgba(0,200,240,.05);border-left:3px solid var(--accent);padding:10px 14px;margin-bottom:14px;font-size:11px;line-height:1.9;border-radius:0 4px 4px 0">
+    <div style="color:var(--accent);font-size:9px;letter-spacing:2px;margin-bottom:5px">STATE ASSIGNMENT — 3 RULES</div>
+    We score every pair of reduced states. High-score pairs should be <em>adjacent</em> in the K-map (1-bit apart) for simpler equations:<br>
+    <span class="r1">▪ Rule 1 (+3 pts)</span> — Same N.S. for any input (states "lead to the same place").<br>
+    <span class="r2">▪ Rule 2 (+2 pts)</span> — Both are N.S. of the same state (shared "parent").<br>
+    <span class="r3">▪ Rule 3 (+1 pt)</span>  — Same output Z (similar behavior).<br>
+    <strong>Best assignment</strong> = maximum total adjacency score → fewest scattered 1s in K-map → simplest SOP.
+  </div>`;
+  h+=`<div class="acards">`;
+  best_assignments.slice(0,3).forEach((a,idx)=>{const isB=idx===0;
+    h+=`<div class="acard${isB?' best':''}">`;
+    h+=`<div class="ar${isB?' best':''}">${isB?'★ BEST':'#'+(idx+1)}</div>`;
+    h+=`<div class="as">${a.score} <span style="font-size:10px;font-weight:normal;color:var(--muted2)">pts</span></div>`;
+    if(isB&&a.score>0)h+=`<div style="font-size:9px;color:var(--green);margin-bottom:5px">Highest adjacency score → best K-map grouping → simplest equations</div>`;
+    h+=`<div class="am">`;
+    Object.entries(a.mapping).forEach(([n,c])=>h+=`${n} → <span class="bin">${c}</span><br>`);
+    h+=`</div>`;
+    if(a.adjacency_details?.length){h+=`<div class="aa">Adjacent pairs:<br>`;a.adjacency_details.forEach(d=>h+=`${d.state_a}(${d.code_a})↔${d.state_b}(${d.code_b}) <span style="color:var(--yellow)">${d.score}pts</span><br>`);h+=`</div>`;}
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  if(score_log?.length){
+    h+=`<div style="font-size:9px;letter-spacing:2px;color:var(--muted2);margin:14px 0 8px">PAIR SCORE LOG</div><div>`;
+    score_log.forEach(e=>{h+=`<div class="slr"><div class="slp">(${e.pair[0]},${e.pair[1]})</div><div class="slsc">${e.score}pts</div><div class="slrs">`;e.reasons.forEach(r=>{const c=r.startsWith('Rule 1')?'r1':r.startsWith('Rule 2')?'r2':'r3';h+=`<span class="${c}">${r}</span><br>`;});h+=`</div></div>`;});
+    h+=`</div>`;
+  }
+  document.getElementById('s5').innerHTML=h;
+}
+function renderAdjGraph(sa,reduced){
+  if(!sa||typeof d3==='undefined')return;
+  const c=document.getElementById('adj-graph');c.innerHTML='';
+  const W=c.clientWidth||640,H=295;
+  const svg=d3.select('#adj-graph').append('svg').attr('width',W).attr('height',H);
+  const scores=sa.pair_scores;const n=reduced.length;const maxSc=Math.max(1,...scores.flat());
+  const nodes=reduced.map((s,i)=>({id:i,name:s.name||s.n,output:s.output}));
+  const links=[];for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)if(scores[i][j]>0)links.push({source:i,target:j,weight:scores[i][j]});
+  const pal=['#00c8f0','#22f08a','#c084fc','#fb923c','#ffd23f','#ff4455'];const outC={};
+  reduced.forEach(s=>{if(!outC[s.output])outC[s.output]=pal[Object.keys(outC).length%pal.length];});
+  const eC=d=>{if(d.weight>=5)return'#fb923c';if(d.weight>=3)return'#ff4455';if(d.weight===2)return'#00c8f0';return'#253545';};
+  const sim=d3.forceSimulation(nodes).force('link',d3.forceLink(links).id(d=>d.id).distance(d=>80+55*(1-d.weight/maxSc))).force('charge',d3.forceManyBody().strength(-240)).force('center',d3.forceCenter(W/2,H/2)).force('collision',d3.forceCollide(30));
+  const link=svg.append('g').selectAll('line').data(links).join('line').attr('stroke',d=>eC(d)).attr('stroke-width',d=>1+4*(d.weight/maxSc)).attr('stroke-opacity',.85);
+  const wl=svg.append('g').selectAll('text').data(links).join('text').attr('text-anchor','middle').attr('fill','var(--yellow)').attr('font-size',9).attr('font-family','Courier New').text(d=>d.weight);
+  const node=svg.append('g').selectAll('g').data(nodes).join('g').attr('class','adj-node').call(d3.drag().on('start',(e,d)=>{if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;}).on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;}).on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}));
+  node.append('circle').attr('r',22).attr('fill',d=>outC[d.output]||'#00c8f0').attr('fill-opacity',.65).attr('stroke',d=>outC[d.output]||'#00c8f0').attr('stroke-width',2);
+  node.append('text').attr('text-anchor','middle').attr('dy','0.35em').text(d=>d.name).attr('fill','#fff').attr('font-size',13).attr('font-weight','bold').attr('font-family','Courier New');
+  node.append('text').attr('text-anchor','middle').attr('dy','2em').text(d=>`Z=${d.output}`).attr('fill','var(--yellow)').attr('font-size',9).attr('font-family','Courier New');
+  sim.on('tick',()=>{link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);wl.attr('x',d=>(d.source.x+d.target.x)/2).attr('y',d=>(d.source.y+d.target.y)/2-7);node.attr('transform',d=>`translate(${Math.max(24,Math.min(W-24,d.x))},${Math.max(24,Math.min(H-24,d.y))})`);});
+}
+
+function renderS6(rows,bestA){
+  if(!rows||!bestA){document.getElementById('s6').innerHTML='<div style="color:var(--muted2);font-size:11px">Requires state assignment.</div>';return;}
+  const k=Object.values(bestA.mapping)[0].length;const ni=_ni;
+  const gSeq=Array.from({length:Math.pow(2,k)},(_,i)=>i^(i>>1));
+  const gPos={};gSeq.forEach((v,p)=>gPos[v]=p);
+  const byPS={};rows.forEach(r=>{if(!byPS[r.ps_bin])byPS[r.ps_bin]={};byPS[r.ps_bin][r.input]=r;});
+  const sortedPS=Object.keys(byPS).sort((a,b)=>(gPos[parseInt(a,2)]??999)-(gPos[parseInt(b,2)]??999));
+  let h=`<div style="font-size:9px;color:var(--muted2);margin-bottom:10px">`;
+  h+=`Encoding: ${Object.entries(bestA.mapping).map(([n,c])=>`<span style="color:var(--accent)">${n}</span>=<span style="color:var(--purple)">${c}</span>`).join(' · ')} &nbsp;·&nbsp; ${k}-bit &nbsp;·&nbsp; Gray code row order</div>`;
+  h+=`<div class="scroll"><table class="rtbl"><thead>`;
+  h+=`<tr><th rowspan="2">P.S.</th><th rowspan="2" class="bin">Q${k-1}…Q0</th>`;
+  for(let x=0;x<ni;x++)h+=`<th colspan="${k}" class="tgh">N.S. (X=${x})</th>`;
+  for(let x=0;x<ni;x++)h+=`<th colspan="${k}" class="tgh">D inputs (X=${x})</th>`;
+  if(_machineType==='mealy'){for(let x=0;x<ni;x++)h+=`<th class="tgh" style="color:var(--yellow)">Z(X=${x})</th>`;}else{h+=`<th rowspan="2">Z</th>`;}h+=`</tr><tr>`;
+  for(let xi=0;xi<ni*2;xi++)for(let b=k-1;b>=0;b--)
+    h+=`<th class="bin" style="font-size:9px;color:${xi<ni?'var(--a2)':'var(--purple)'}">${xi<ni?'Q':'D'}${b}</th>`;
+  h+=`</tr></thead><tbody>`;
+  for(const psCode of sortedPS){
+    const rx=byPS[psCode];const s=rx[0]??rx[Object.keys(rx)[0]];
+    h+=`<tr class="${s.unused?'unused-row':''}"><td class="${s.unused?'dc':'sn'}">${s.ps_name}</td><td class="bin">${psCode}</td>`;
+    for(let x=0;x<ni;x++){const r=rx[x];if(r)for(const b of r.ns_bin)h+=`<td class="${b==='-'?'dc':'ns'}">${b}</td>`;else for(let b=0;b<k;b++)h+=`<td class="dc">–</td>`;}
+    for(let x=0;x<ni;x++){const r=rx[x];if(r)for(const b of r.d_bits)h+=`<td class="${b==='-'?'dc':'bin'}">${b}</td>`;else for(let b=0;b<k;b++)h+=`<td class="dc">–</td>`;}
+    if(_machineType==='mealy'){for(let xm=0;xm<ni;xm++){const rowmx=byPS[psCode]?.[xm];const zvx=rowmx&&!isDC(rowmx.output)?String(rowmx.output).trim():'-';h+=`<td class="${zvx==='-'?'dc':'out'}">${zvx}</td>`;}}else{h+=`<td class="${s.output==='-'?'dc':'out'}">${s.output}</td>`;}h+=`</tr>`;
+  }
+  h+=`</tbody></table></div>`;document.getElementById('s6').innerHTML=h;
+}
+
+const fmtEq=eq=>eq.replace(/([QX]\d*)/g,'<span class="var">$1</span>').replace(/'/g,"<span class='prime'>'</span>").replace(/\+/g,"<span class='plus'> + </span>");
+
+function renderS7(excit,jkExcit,bestA){
+  if(!excit){document.getElementById('s7').innerHTML='<div style="color:var(--muted2);font-size:11px">Requires state assignment.</div>';return;}
+  const k=bestA?Object.values(bestA.mapping)[0].length:1;
+  const vs=Object.values(excit)[0]?.var_names||[];
+  const ze=excit['Z'];
+  let h=`<div style="display:flex;gap:6px;margin-bottom:12px">`;
+  h+=`<button class="btn sm" id="fft-d" onclick="showFF('d')" style="background:var(--accent);color:#000;border:none">D Flip-Flop</button>`;
+  h+=`<button class="btn sm gh" id="fft-jk" onclick="showFF('jk')">J-K Flip-Flop</button>`;
+  h+=`</div>`;
+  h+=`<div id="ff-d" class="eq-items">`;
+  for(let b=k-1;b>=0;b--){const eq=excit[`D${b}`];if(!eq)continue;h+=`<div class="eq-ln"><span class="en">D${b}</span><span class="ee">=</span><span class="ex">${fmtEq(eq.equation)}</span></div>`;}
+  if(ze)h+=`<div class="eq-ln"><span class="en">Z</span><span class="ee">=</span><span class="ex">${fmtEq(ze.equation)}</span></div>`;
+  h+=`</div>`;
+  h+=`<div id="ff-jk" class="eq-items" style="display:none">`;
+  if(jkExcit){
+    for(let b=k-1;b>=0;b--){
+      const J=jkExcit[`J${b}`],K=jkExcit[`K${b}`];if(!J||!K)continue;
+      h+=`<div class="eq-ln"><span class="en">J${b}</span><span class="ee">=</span><span class="ex">${fmtEq(J.equation)}</span></div>`;
+      h+=`<div class="eq-ln"><span class="en">K${b}</span><span class="ee">=</span><span class="ex">${fmtEq(K.equation)}</span></div>`;
+    }
+    if(ze)h+=`<div class="eq-ln"><span class="en">Z</span><span class="ee">=</span><span class="ex">${fmtEq(ze.equation)}</span></div>`;
+  }else{h+=`<div style="color:var(--muted2);font-size:11px">J-K not computed (try Lec6 Ex1).</div>`;}
+  h+=`</div>`;
+  h+=`<div style="font-size:9px;color:var(--muted2);margin-top:10px">Variables: ${vs.join(', ')} &nbsp;·&nbsp; Q-M minimized &nbsp;·&nbsp; (')=NOT &nbsp;·&nbsp; x=Don't Care</div>`;
+  document.getElementById('s7').innerHTML=h;
+}
+function showFF(t){
+  document.getElementById('ff-d').style.display=t==='d'?'':'none';
+  document.getElementById('ff-jk').style.display=t==='jk'?'':'none';
+  document.getElementById('fft-d').style.cssText=t==='d'?'background:var(--accent);color:#000;border:none':'';
+  document.getElementById('fft-jk').style.cssText=t==='jk'?'background:var(--accent);color:#000;border:none':'';
+}
+
+function buildKmap(minterms,dontcares,nv,varNames,title){
+  if(nv<2||nv>5)return`<div class="kmap-wrap"><div class="kmap-title">${title}</div><div style="font-size:10px;color:var(--muted2)">${nv} variables: K-map not available</div></div>`;
+  const qV=varNames.filter(v=>v.startsWith('Q'));
+  const xV=varNames.filter(v=>v.startsWith('X'));
+  const rV=qV.length||Math.ceil(nv/2);
+  const cV=nv-rV;
+  const nR=Math.pow(2,rV);const nC=Math.pow(2,cV);
+  const gray=n=>Array.from({length:n},(_,i)=>i^(i>>1));
+  const rG=gray(nR);const cG=gray(nC);
+  const mtS=new Set(minterms);const dcS=new Set(dontcares);
+  const pis=qmJS(minterms,dontcares,nv);
+  const cov=(pi,m)=>{const[v,d]=pi;for(let b=0;b<nv;b++){if((d>>b)&1)continue;if(((v>>b)&1)!==((m>>b)&1))return false;}return true;};
+  const cellPIC=m=>{for(let i=0;i<pis.length;i++)if(cov(pis[i],m))return KCLR[i%KCLR.length];return'';};
+  const bs=(g,b)=>g.toString(2).padStart(b,'0');
+  let h=`<div class="kmap-wrap"><div class="kmap-title">${title}</div>`;
+  h+=`<table class="kmap-tbl"><thead><tr>`;
+  h+=`<th style="font-size:9px">${(qV.join('')||bs(0,rV))}\\\\${(xV.join('')||bs(0,cV))}</th>`;
+  for(let ci=0;ci<nC;ci++)h+=`<th>${bs(cG[ci],Math.max(1,cV))}</th>`;
+  h+=`</tr></thead><tbody>`;
+  for(let ri=0;ri<nR;ri++){
+    h+=`<tr><th>${bs(rG[ri],rV)}</th>`;
+    for(let ci=0;ci<nC;ci++){
+      const m=(rG[ri]<<cV)|cG[ci];
+      let val,cls='';
+      if(mtS.has(m)){val='1';cls=cellPIC(m)||'k1';}
+      else if(dcS.has(m)){val='×';cls='kd';}
+      else{val='0';cls='k0';}
+      h+=`<td class="${cls}" data-tip="m${m}=(${m.toString(2).padStart(nv,'0')})=${val}">${val}</td>`;
+    }
+    h+=`</tr>`;
+  }
+  h+=`</tbody></table>`;
+  if(pis.length){h+=`<div class="kmap-leg">`;
+    pis.forEach((pi,i)=>{const expr=piStr(pi,varNames).replace(/<span[^>]*>/g,'').replace(/<\/span>/g,'');
+      h+=`<div class="kmap-leg-i"><div class="kmap-dot" style="background:${KSWATCH[i%KSWATCH.length]};opacity:.8"></div><span style="font-size:10px;color:var(--text)">${expr||'1'}</span></div>`;});
+    h+=`</div>`;}
+  h+=`</div>`;return h;
+}
+
+let _jkExcitGlobal=null;
+function renderKmaps(excit,bestA,jkExcit){
+  _jkExcitGlobal=jkExcit;
+  if(!excit||!bestA){document.getElementById('skm').innerHTML='<div style="color:var(--muted2);font-size:11px">Requires state assignment.</div>';return;}
+  const k=Object.values(bestA.mapping)[0].length;
+  const ze=excit['Z'];
+  let h=`<div style="display:flex;gap:6px;margin-bottom:12px">`;
+  h+=`<button class="btn sm" id="kmt-d" onclick="showKMTab('d')" style="background:var(--accent);color:#000;border:none">D Flip-Flop</button>`;
+  if(jkExcit)h+=`<button class="btn sm gh" id="kmt-jk" onclick="showKMTab('jk')">J-K Flip-Flop</button>`;
+  h+=`</div>`;
+  h+=`<div id="km-d"><div class="kmap-grid">`;
+  for(let b=k-1;b>=0;b--){const eq=excit[`D${b}`];if(!eq)continue;h+=buildKmap(eq.minterms,eq.dontcares,eq.var_names.length,eq.var_names,`D${b}`);}
+  if(ze)h+=buildKmap(ze.minterms,ze.dontcares,ze.var_names.length,ze.var_names,'Z');
+  h+=`</div></div>`;
+  h+=`<div id="km-jk" style="display:none"><div class="kmap-grid">`;
+  if(jkExcit){
+    for(let b=k-1;b>=0;b--){
+      const J=jkExcit[`J${b}`],K=jkExcit[`K${b}`];
+      if(J)h+=buildKmap(J.minterms,J.dontcares,J.var_names.length,J.var_names,`J${b}`);
+      if(K)h+=buildKmap(K.minterms,K.dontcares,K.var_names.length,K.var_names,`K${b}`);
+    }
+    if(ze)h+=buildKmap(ze.minterms,ze.dontcares,ze.var_names.length,ze.var_names,'Z');
+  }
+  h+=`</div></div>`;
+  document.getElementById('skm').innerHTML=h;
+}
+function showKMTab(t){
+  document.getElementById('km-d').style.display=t==='d'?'':'none';
+  const jkEl=document.getElementById('km-jk');if(jkEl)jkEl.style.display=t==='jk'?'':'none';
+  document.getElementById('kmt-d').style.cssText=t==='d'?'background:var(--accent);color:#000;border:none':'';
+  const jkTab=document.getElementById('kmt-jk');if(jkTab)jkTab.style.cssText=t==='jk'?'background:var(--accent);color:#000;border:none':'';
+}
+
+function renderCircle(states,cells,classes){
+  const svgEl=document.getElementById('circ-svg');
+  const clsEl=document.getElementById('circ-classes');
+  if(!svgEl||!clsEl)return;
+  if(!states||states.length<2){svgEl.innerHTML='';clsEl.innerHTML='';return;}
+  const n=states.length;
+  const W=Math.max(300,Math.min(420,n*40));const H=W;
+  const cx=W/2,cy=H/2,R=W*0.40;
+  const NODE_R=Math.max(11,Math.min(17,W/22));
+  const FONT=Math.max(10,Math.min(14,NODE_R*0.9));
+  const CLRS=['#22f08a','#ff4455','#00c8f0','#fb923c','#c084fc','#ffd23f','#f472b6','#38bdf8'];
+  const s2c={};
+  classes.forEach((cls,ci)=>cls.forEach(sn=>s2c[sn]=ci));
+  const nm=s=>s.name||s.n;
+  const pos=states.map((_,i)=>({x:cx+R*Math.sin(2*Math.PI*i/n),y:cy-R*Math.cos(2*Math.PI*i/n)}));
+  const stateIdx={};states.forEach((s,i)=>stateIdx[nm(s)]=i);
+  let svg=`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // Outer circle
+  svg+=`<circle cx="${cx}" cy="${cy}" r="${(R+NODE_R+5).toFixed(1)}" fill="none" stroke="#253545" stroke-width="2.5"/>`;
+  // Lines: draw ALL pairs within each equiv class (complete graph per class)
+  classes.forEach((cls,ci)=>{
+    if(cls.length<2)return;
+    const clr=CLRS[ci%CLRS.length];
+    for(let a=0;a<cls.length;a++){
+      for(let b=a+1;b<cls.length;b++){
+        const ia=stateIdx[cls[a]],ib=stateIdx[cls[b]];
+        if(ia==null||ib==null)return;
+        svg+=`<line x1="${pos[ia].x.toFixed(1)}" y1="${pos[ia].y.toFixed(1)}" x2="${pos[ib].x.toFixed(1)}" y2="${pos[ib].y.toFixed(1)}" stroke="${clr}" stroke-width="2.5" stroke-opacity="0.88"/>`;
+      }
+    }
+  });
+  // Nodes on top
+  for(let i=0;i<n;i++){
+    const sn=nm(states[i]);const ci=s2c[sn];
+    const clr=ci!==undefined?CLRS[ci%CLRS.length]:'#5a6f82';
+    svg+=`<circle cx="${pos[i].x.toFixed(1)}" cy="${pos[i].y.toFixed(1)}" r="${NODE_R}" fill="#0a0e14" stroke="${clr}" stroke-width="2.2"/>`;
+    svg+=`<text x="${pos[i].x.toFixed(1)}" y="${(pos[i].y+FONT*0.38).toFixed(1)}" text-anchor="middle" fill="${clr}" font-family="Courier New" font-size="${FONT}" font-weight="bold">${sn}</text>`;
+  }
+  svg+=`</svg>`;
+  svgEl.innerHTML=svg;
+  // Classes list
+  let ch='<div style="display:flex;flex-direction:column;gap:8px">';
+  classes.forEach((cls,ci)=>{
+    const clr=CLRS[ci%CLRS.length];
+    ch+=`<div style="display:flex;align-items:center;gap:8px"><div style="width:13px;height:13px;border-radius:50%;background:${clr};flex-shrink:0"></div><span style="color:${clr};font-size:13px;font-weight:bold">{${cls.join(', ')}}</span></div>`;
+  });
+  ch+='</div>';
+  clsEl.innerHTML=ch;
+}
+
+async function runVerify(){
+  if(!_reduced||!_origStates){document.getElementById('vst').textContent='Run reduction first.';return;}
+  document.getElementById('vst').textContent='Running…';
+  let result=null;
+  if(apiAvail){try{result=await callApi('/api/verify',{original:_origStates,reduced:_reduced,num_inputs:_ni});}catch{result=null;}}
+  if(!result){const trials=[];let allOk=true;
+    for(let t=0;t<6;t++){const seq=Array.from({length:25},()=>Math.floor(Math.random()*_ni));
+      const orig=simFSM(_origStates.map(s=>({name:s.name||s.n,next_states:s.next_states||s.ns,output:s.output||s.z})),(_origStates[0].name||_origStates[0].n),seq,_ni);
+      const red=simFSM(_reduced.map(s=>({name:s.name||s.n,next_states:s.next_states,output:s.output})),(_reduced[0].name||_reduced[0].n),seq,_ni);
+      const mm=orig.slice(0,Math.min(orig.length,red.length)).filter((v,i)=>v!==red[i]).length;
+      if(mm)allOk=false;trials.push({trial:t+1,input_seq:seq.slice(0,8),orig_outputs:orig.slice(0,8),reduced_outputs:red.slice(0,8),mismatches:mm,passed:mm===0});}
+    result={trials,all_passed:allOk};}
+  renderVerify(result);
+  const st=document.getElementById('vst');st.textContent=result.all_passed?'All trials passed ✓':'⚠ Mismatch!';st.style.color=result.all_passed?'var(--green)':'var(--red)';
+}
+
+function renderVerify(result){
+  const nt=result.trials.length;
+  let h='';
+  if(result.all_passed){
+    h+=`<div style="background:var(--gbg);border:1px solid rgba(34,240,138,.3);border-radius:5px;padding:10px 14px;margin-bottom:10px;font-size:11px;color:var(--green)">
+      ✓ All ${nt} random trials passed.<br>
+      <span style="color:var(--muted2);font-size:10px"><em>Note:</em> Probabilistic check — ${nt} random sequences of length ~25.
+      All passing strongly suggests correctness, but the formal proof is the Implication Table above.</span>
+    </div>`;
+  }else{
+    h+=`<div style="background:var(--rbg);border:1px solid rgba(255,68,85,.3);border-radius:5px;padding:10px 14px;margin-bottom:10px;font-size:11px;color:var(--red)">
+      ⚠ Mismatch in ${result.trials.filter(t=>!t.passed).length}/${nt} trial(s).
+    </div>`;
+  }
+  h+=`<div>`;
+  result.trials.forEach(t=>{h+=`<div class="vr"><span class="${t.passed?'vp':'vf'}">${t.passed?'✓':'✗'}</span><span style="color:var(--muted2);font-size:9px;min-width:46px">T${t.trial}</span><span style="color:var(--muted2);font-size:9px">In:[${t.input_seq.join(',')}…]</span><span style="font-size:9px;color:var(--a2)">Orig:[${t.orig_outputs.join(',')}]</span><span style="font-size:9px;color:var(--a3)">Red:[${t.reduced_outputs.join(',')}]</span>${!t.passed?`<span style="color:var(--red);font-size:9px">${t.mismatches}mm</span>`:''}</div>`;});
+  document.getElementById('svfy').innerHTML=h+`</div>`;
+}
+
+/* INPUT TABLE */
+function colLabel(x,ni){
+  if(ni===1)return x===0?'X=0':'X=1';
+  return`X=${x}`;
+}
+
+function getTableData(){
+  const ni=parseInt(document.getElementById('sel-ni').value);
+  const rows=document.querySelectorAll('#inp-tbl tbody tr');
+  const out=[];let ok=true;
+  rows.forEach(tr=>{
+    const ins=tr.querySelectorAll('input.cin');
+    const n=ins[0].value.trim().toLowerCase();
+    if(!n){ok=false;return;}
+    if(_machineType==='mealy'){
+      const ns=[],zs=[];
+      for(let x=0;x<ni;x++){ns.push(ins[1+x*2].value.trim().toLowerCase()||'-');zs.push(ins[2+x*2].value.trim()||'-');}
+      out.push({n,ns,z:'-',zs});
+    }else{
+      const ns=Array.from({length:ni},(_,x)=>ins[1+x].value.trim().toLowerCase()||'-');
+      const z=ins[1+ni].value.trim()||'-';
+      out.push({n,ns,z,zs:undefined});
+    }
+  });
+  return ok?out:null;
+}
+
+function buildTable(rows,ni){
+  _ni=ni;
+  updateConfigBadge();
+  refreshPresetButtons();
+  let h=`<thead><tr><th style="width:26px"></th><th>P.S.</th>`;
+  if(_machineType==='mealy'){
+    for(let x=0;x<ni;x++)h+=`<th colspan="2" style="background:rgba(0,200,240,.06);font-size:9px">${colLabel(x,ni)}</th>`;
+    h+=`</tr><tr><th></th><th></th>`;
+    for(let x=0;x<ni;x++){h+=`<th style="font-size:9px;color:var(--a2)">N.S.</th><th style="font-size:9px;color:var(--yellow)">Z${_obits>1?'₁Z₂':''}</th>`;}
+  }else{
+    for(let x=0;x<ni;x++)h+=`<th>N.S. (${colLabel(x,ni)})</th>`;
+    h+=`<th>Z${_obits>1?'₁Z₂':''}</th>`;
+  }
+  h+=`</tr></thead><tbody>`;
+  const dflt=i=>String.fromCharCode(65+i);
+  rows.forEach((r,i)=>{
+    h+=`<tr><td class="rn">${i+1}</td>`;
+    h+=`<td><input class="cin" value="${r.n||dflt(i)}" placeholder="${dflt(i)}" maxlength="5" oninput="clearRes()"></td>`;
+    if(_machineType==='mealy'){
+      for(let x=0;x<ni;x++){
+        h+=`<td><input class="cin" value="${r.ns?r.ns[x]||'':''}" placeholder="–" maxlength="5" oninput="clearRes()"></td>`;
+        h+=`<td><input class="cin" style="color:var(--yellow)" value="${r.zs?r.zs[x]||'':''}" placeholder="${_obits>1?'00':'0'}" maxlength="4" oninput="clearRes()"></td>`;
+      }
+    }else{
+      for(let x=0;x<ni;x++)h+=`<td><input class="cin" value="${r.ns?r.ns[x]||'':''}" placeholder="–" maxlength="5" oninput="clearRes()"></td>`;
+      h+=`<td><input class="cin" style="color:var(--yellow)" value="${r.z||''}" placeholder="${_obits>1?'00':'0'}" maxlength="4" oninput="clearRes()"></td>`;
+    }
+    h+=`</tr>`;
+  });
+  h+=`</tbody>`;
+  document.getElementById('inp-tbl').innerHTML=h;
+}
+
+function emptyRows(n,ni){return Array.from({length:n},(_,i)=>({n:String.fromCharCode(65+i),ns:Array(ni).fill(''),z:'',zs:Array(ni).fill('')}));}
+
+function rebuildEmpty(){
+  const n=parseInt(document.getElementById('sel-n').value);
+  const ni=parseInt(document.getElementById('sel-ni').value);
+  _obits=parseInt(document.getElementById('sel-obits').value);
+  buildTable(emptyRows(n,ni),ni);
+  clearRes();
+}
+function clearTable(){rebuildEmpty();}
+function clearRes(){document.getElementById('results').classList.remove('on');setSt('');document.getElementById('nav-res').style.display='none';}
+function setSt(m,er=false){const el=document.getElementById('st-msg');el.textContent=m;el.className='stxt'+(er?' er':'');}
+function loadP(k){
+  const p=PR[k];
+  _machineType=p.mealy?'mealy':'moore';
+  document.getElementById('mt-moore').classList.toggle('on',!p.mealy);
+  document.getElementById('mt-mealy').classList.toggle('on',!!p.mealy);
+  const ni=p.ni||2;
+  const ob=p.obits||1;          // respect preset's output-bit count
+  document.getElementById('sel-ni').value=ni;
+  document.getElementById('sel-n').value=p.rows.length;
+  document.getElementById('sel-obits').value=String(ob);
+  _obits=ob;
+  buildTable(p.rows,ni);
+  clearRes();
+}
+function addLog(msg,cls){const b=document.getElementById('lbox');const s=document.createElement('span');s.className='lg'+(cls?' '+cls:'');s.textContent='▸ '+msg;b.appendChild(s);b.scrollTop=b.scrollHeight;}
+function gotoSec(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});}
+
+/* Sidebar scroll spy */
+function initSpy(){
+  const map={'sec-input':null,'sec-stats':'nv-stats','sec-s1':'nv-s1','sec-s2':'nv-s2','sec-s3':'nv-s3','sec-s4':'nv-s4','sec-s5':'nv-s5','sec-s6':'nv-s6','sec-s7':'nv-s7','sec-skm':'nv-skm','sec-sv':'nv-sv'};
+  const obs=new IntersectionObserver(en=>{en.forEach(e=>{if(e.isIntersecting){const nid=map[e.target.id];if(nid){document.querySelectorAll('.ni').forEach(b=>b.classList.remove('active'));document.getElementById(nid)?.classList.add('active');}}});},{threshold:.3});
+  Object.keys(map).forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el);});
+}
+
+/* Bulk paste */
+function openBulk(){document.getElementById('bulk-ov').classList.add('open');}
+function closeBulk(){document.getElementById('bulk-ov').classList.remove('open');}
+function closeBulkBg(e){if(e.target===document.getElementById('bulk-ov'))closeBulk();}
+function parseBulk(){
+  const raw=document.getElementById('bta').value.trim();const err=document.getElementById('berr');err.textContent='';
+  if(!raw){err.textContent='Nothing to import.';return;}
+  const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));if(!lines.length){err.textContent='No data.';return;}
+  const first=lines[0].split(/[\s,\t]+/).filter(Boolean);let start=0,fni=null;
+  if(first.length===2&&/^\d+$/.test(first[0])&&/^\d+$/.test(first[1])){start=1;fni=parseInt(first[1]);}
+  const data=lines.slice(start);if(!data.length){err.textContent='No state rows.';return;}
+  const fp=data[0].split(/[\s,\t]+/).filter(Boolean);
+  // ni = input columns; for Mealy each input has NS+Z = 2 cols per input
+  const isMealyBulk=_machineType==='mealy';
+  const ni=fni??Math.max(1,isMealyBulk?Math.floor((fp.length-1)/2):fp.length-2);
+  const rows=[];
+  for(const line of data){
+    const p=line.split(/[\s,\t]+/).filter(Boolean);
+    const minCols=isMealyBulk?1+ni*2:2+ni;
+    if(p.length<minCols){err.textContent=`Line "${line}" — expected ${minCols} columns, got ${p.length}.`;return;}
+    if(isMealyBulk){
+      const ns=[],zs=[];
+      for(let x=0;x<ni;x++){ns.push(p[1+x*2]||'-');zs.push(p[2+x*2]||'-');}
+      rows.push({n:p[0].toLowerCase(),ns,z:'-',zs});
+    }else{
+      rows.push({n:p[0].toLowerCase(),ns:p.slice(1,1+ni).map(v=>isDC(v)?'-':v.toLowerCase()),z:p[1+ni]||'-'});
+    }
+  }
+  document.getElementById('sel-n').value=Math.max(3,rows.length);
+  document.getElementById('sel-ni').value=ni;
+  buildTable(rows,ni);clearRes();closeBulk();
+}
+
+/* Init */
+checkApi().then(()=>loadP('p2'));
+initSpy();
+</script>
+</body>
+</html>
